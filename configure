@@ -8282,9 +8282,6 @@ done
 
 fi
 
-# FIXME: this has to replaced with a real check
-LIBS="$LIBS -lssl"
-
 
 	# Check for T1 timer value
 	def_timeout=500

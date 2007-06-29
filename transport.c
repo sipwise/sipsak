@@ -805,7 +805,7 @@ int check_for_message(char *recv, int size, struct sipsak_con_data *cd,
 			}
 		}
 		senddiff = deltaT(&(srt->starttime), &(srt->recvtime));
-		if (senddiff > inv_final) {
+		if (senddiff > (float)inv_final) {
 			if (timing == 0) {
 				if (verbose>0)
 					printf("*** giving up, no final response after %.3f ms\n", senddiff);

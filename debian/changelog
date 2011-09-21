@@ -1,9 +1,16 @@
-sipsak (0.9.6+sipwise1) unstable; urgency=low
+ngcp-sipsak (0.9.6+sipwise2) unstable; urgency=low
+
+  * Remove RAW support as it's not implemented properly and causes timeout
+    problems.
+
+ -- Richard Fuchs <rfuchs@sipwise.com>  Wed, 21 Sep 2011 13:10:45 -0400
+
+ngcp-sipsak (0.9.6+sipwise1) unstable; urgency=low
 
   * Set --default-timeout from 500ms to 150ms in configure
   * Abort after hitting timeout.
 
- -- Andreas Granig <agranig@sipwise.com>  Wed, 21 Sep 2011 15:12:49 +0200
+ -- Andreas Granig <agranig@sipwise.com>  Wed, 21 Sep 2011 18:40:57 +0200
 
 sipsak (0.9.6-2.1) unstable; urgency=low
 

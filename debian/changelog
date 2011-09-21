@@ -1,0 +1,118 @@
+sipsak (0.9.6+sipwise1) unstable; urgency=low
+
+  * Set --default-timeout from 500ms to 150ms in configure
+  * Abort after hitting timeout.
+
+ -- Andreas Granig <agranig@sipwise.com>  Wed, 21 Sep 2011 15:12:49 +0200
+
+sipsak (0.9.6-2.1) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * Switch GnuTLS detection to pkg-config. Closes: #529909
+
+ -- Andreas Metzler <ametzler@debian.org>  Sun, 29 Nov 2009 09:24:31 +0100
+
+sipsak (0.9.6-2) unstable; urgency=low
+
+  * Adopt the package by the Debian VoIP team per request of the old
+    maintainer, ARAKI Yasuhiro.
+  * Incorporate previous NMUs.
+  * Bump Standards-Version to 3.7.3.
+
+ -- Faidon Liambotis <paravoid@debian.org>  Wed, 23 Jan 2008 11:09:07 +0200
+
+sipsak (0.9.6-1.2) unstable; urgency=high
+
+  * Non-maintainer upload by the Debian VoIP team.
+  * Urgency high because of an RC bugfix.
+  * Mention all the copyright holders and GPLv2 "or later" in
+    debian/copyright. (Closes: #456440)
+  * Fix debian/watch by using a v3 watchfile. (Closes: #450083)
+  * Don't ship an empty /usr/sbin.
+
+ -- Faidon Liambotis <paravoid@debian.org>  Tue, 22 Jan 2008 11:07:01 +0200
+
+sipsak (0.9.6-1.1) unstable; urgency=low
+
+  * NMU
+  * Substitute AC_TRY_COMPILE with AC_TRY_LINK, fixing FTBFS with gcc-4.1
+    (Closes: #358643)
+
+ -- Julien Danjou <acid@debian.org>  Tue, 30 May 2006 14:54:40 +0200
+
+sipsak (0.9.6-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- ARAKI Yasuhiro <ar@debian.org>  Tue, 31 Jan 2006 13:14:05 +0900
+
+sipsak (0.9.5-1) unstable; urgency=low
+
+  * New upstream release. Currently disabled 'c-ares'. Because c-ares is not packaged for Debian.
+
+ -- ARAKI Yasuhiro <ar@debian.org>  Mon, 21 Nov 2005 16:32:41 +0900
+
+sipsak (0.9.2-2) unstable; urgency=low
+
+  * fix: Add the missing Build-Depends on 'libgnutls-dev' to debian/control. (Closes: #329779) 
+
+ -- ARAKI Yasuhiro <ar@debian.org>  Tue,  4 Oct 2005 14:43:09 +0900
+
+sipsak (0.9.2-1) unstable; urgency=low
+
+  * New upstream release
+  * fix: sipsak try to connect wrong port under no SRV record. 
+    (Closes: #328262)
+
+ -- ARAKI Yasuhiro <ar@debian.org>  Fri, 23 Sep 2005 02:18:30 +0900
+
+sipsak (0.9.1-2) unstable; urgency=low
+
+  * Apply for debian-policy 3.6.2.1. 
+
+ -- ARAKI Yasuhiro <ar@debian.org>  Mon, 29 Aug 2005 21:01:54 +0900
+
+sipsak (0.9.1-1) unstable; urgency=low
+
+  * New upstream release
+  * DNS SRV support with libruli4.
+
+ -- ARAKI Yasuhiro <ar@debian.org>  Fri,  5 Aug 2005 12:35:19 +0900
+
+sipsak (0.8.12-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- araki yasuhiro <ar@debian.org>  Wed,  4 May 2005 17:44:08 +0900
+
+sipsak (0.8.11-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- ARAKI Yasuhiro <ar@debian.org>  Fri,  4 Feb 2005 14:21:30 +0900
+
+sipsak (0.8.10-1) unstable; urgency=low
+
+  * New upstream release
+  * Add debian/watch 
+
+ -- ARAKI Yasuhiro <ar@debian.org>  Fri,  8 Oct 2004 16:41:31 +0900
+
+sipsak (0.8.7-3) unstable; urgency=low
+
+  * Description fix. Last version is not fixed.. (Closes: #242285) 
+
+ -- ARAKI Yasuhiro <ar@debian.org>  Tue,  6 Apr 2004 11:26:40 +0900
+
+sipsak (0.8.7-2) unstable; urgency=low
+
+  * Description fix. (Closes: #242285) 
+
+ -- ARAKI Yasuhiro <ar@debian.org>  Tue,  6 Apr 2004 10:53:00 +0900
+
+sipsak (0.8.7-1) unstable; urgency=low
+
+  * Initial Release. (Closes: #239984)
+
+ -- ARAKI Yasuhiro <ar@debian.org>  Thu, 25 Mar 2004 13:37:46 +0900
+

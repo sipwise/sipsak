@@ -1,0 +1,5 @@
+version=3
+
+opts=downloadurlmangle=s/prdownload/download/,uversionmangle=s/-.*$// \
+http://developer.berlios.de/project/showfiles.php?group_id=485 \
+http://prdownload.berlios.de/sipsak/sipsak-(.*)\.tar\.gz

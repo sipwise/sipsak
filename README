@@ -1,0 +1,49 @@
+
+    REQUIREMENTS
+    ============
+
+ None.
+
+ Optional:
+ - Have 
+     GnuTLS (http://www.gnutls.org/)
+   or 
+	 OpenSSL (http://www.openssl.org/)
+   installed on your system to use their MD5 implementations
+   instead of sipsak own version.
+ - Have 
+     c-ares (http://daniel.haxx.se/projects/c-ares/)
+   or
+     ruli (http://www.nongnu.org/ruli/)
+   installed on your system to get DNS SRV lookup support
+   compiled into your sipsak binary.
+     
+    INSTALLATION
+    ============
+
+ The usual
+
+   ./configure
+   make
+
+ followed by an optional
+
+   make install
+
+ if the binary should be available for all users on that host.
+
+    USAGE
+    =====
+
+ Please read the man page. It also contains some typical usage
+ examples at the end. Or check the website (http://sipsak.org)
+ for more/other examples.
+
+    FEEDBACK
+    ========
+
+ Any kind of feedback is always welcome. Please send it to the
+ mailing list at sipsak@lists.sipsak.org (subscription required).
+
+ Have fun
+   Nils

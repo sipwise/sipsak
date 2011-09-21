@@ -1,0 +1,16 @@
+Source: sipsak
+Section: net
+Priority: optional
+Maintainer: Debian VoIP Team <pkg-voip-maintainers@lists.alioth.debian.org>
+Uploaders: Faidon Liambotis <paravoid@debian.org>
+Build-Depends: debhelper (>= 4.0.0), libruli4-dev, libgnutls-dev, pkg-config
+Standards-Version: 3.7.3
+
+Package: sipsak
+Architecture: any
+Depends: ${shlibs:Depends}
+Description: SIP Swiss army knife
+ sipsak is a small command line tool for developers and administrators of 
+ Session Initiation Protocol (SIP) applications. 
+ It can be used for some simple tests on SIP applications and devices.
+

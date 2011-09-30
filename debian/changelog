@@ -1,3 +1,9 @@
+ngcp-sipsak (0.9.6+sipwise3) unstable; urgency=low
+
+  * Fixed Debian packaging [Mika]
+
+ -- Richard Fuchs <rfuchs@sipwise.com>  Fri, 30 Sep 2011 11:10:04 -0400
+
 ngcp-sipsak (0.9.6+sipwise2) unstable; urgency=low
 
   * Remove RAW support as it's not implemented properly and causes timeout

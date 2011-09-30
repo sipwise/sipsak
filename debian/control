@@ -1,7 +1,7 @@
 Source: ngcp-sipsak
 Section: net
 Priority: optional
-Maintainer: Andreas Granig <agranig@sipwise.com>
+Maintainer: Sipwise Development Team <support@sipwise.com>
 Build-Depends: debhelper (>= 4.0.0), libruli4-dev, libgnutls-dev, pkg-config
 Standards-Version: 3.7.3
 

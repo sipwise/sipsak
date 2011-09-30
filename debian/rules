@@ -63,7 +63,7 @@ install: build
 	dh_clean -k 
 	dh_installdirs
 
-	$(MAKE) install DESTDIR=$(CURDIR)/debian/sipsak
+	$(MAKE) install DESTDIR=$(CURDIR)/debian/ngcp-sipsak
 
 binary-indep: build install
 # We have nothing to do by default.

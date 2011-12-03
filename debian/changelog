@@ -1,3 +1,9 @@
+ngcp-sipsak (0.9.6+sipwise4) unstable; urgency=low
+
+  * Fixed bad tagging
+
+ -- Richard Fuchs <rfuchs@sipwise.com>  Fri, 30 Sep 2011 11:10:04 -0400
+
 ngcp-sipsak (0.9.6+sipwise3) unstable; urgency=low
 
   * Fixed Debian packaging [Mika]

@@ -1,3 +1,10 @@
+ngcp-sipsak (0.9.6+sipwise5) unstable; urgency=low
+
+  [ Michael Prokop ]
+  * Wrap and sort items in Debian packaging files.
+
+ -- Andrew Pogrebennyk <apogrebennyk@sipwise.com>  Tue, 11 Dec 2012 12:20:47 +0100
+
 ngcp-sipsak (0.9.6+sipwise4) unstable; urgency=low
 
   * Fixed bad tagging

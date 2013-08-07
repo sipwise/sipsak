@@ -1,3 +1,10 @@
+ngcp-sipsak (0.9.6+sipwise6) unstable; urgency=low
+
+  [ Richard Fuchs ]
+  * fix string off-by-one bugs
+
+ -- Andrew Pogrebennyk <apogrebennyk@sipwise.com>  Wed, 07 Aug 2013 15:08:28 +0200
+
 ngcp-sipsak (0.9.6+sipwise5) unstable; urgency=low
 
   [ Michael Prokop ]

@@ -10,7 +10,7 @@ ToDo List (no order):
  - increase hostname detection for the Via line
  - add support for priority and weigth in SRV responses
  - endless randtrash mode with logfile
- - support for IPv6
+ - IPv6 DNS resolution
  - strict RR support
 
 Feel free to send me patches for this (or other) features!

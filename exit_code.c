@@ -56,8 +56,6 @@ void print_backtrace()
 
 void exit_code(int code)
 {
-	
-	print_backtrace();
 	switch(exit_mode) {
 		case EM_DEFAULT:	
 			if (code == 4) {

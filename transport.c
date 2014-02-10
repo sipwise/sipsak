@@ -73,14 +73,18 @@ int rawsock;
 void init_con_data(struct sipsak_con_data *cd) {
 	switch(address.af) {
 		case AF_INET:
+#ifdef DEBUG
 			printf("ipv4 bind\n");
+#endif
 			memset(&cd->adr, 0, sizeof(struct sockaddr_in));
 			cd->in_adr.sin_family = AF_INET;
 			cd->in_adr.sin_addr.s_addr = htonl( INADDR_ANY);
 			cd->in_adr.sin_port = htons((short)lport);
 			break;
 		case AF_INET6:
+#ifdef DEBUG
 			printf("ipv6 bind\n");
+#endif
 			memset(&cd->adr, 0, sizeof(struct sockaddr_in6));
 			cd->in6_adr.sin6_family = AF_INET6;
 			cd->in6_adr.sin6_addr = in6addr_any;
@@ -102,7 +106,6 @@ void create_sockets(struct sipsak_con_data *cd) {
 	if (transport == SIP_UDP_TRANSPORT) {
 		/* create the un-connected socket */
 		if (!symmetric) {
-			printf("unconnected\n");
 			cd->usock = (int)socket(address.af, SOCK_DGRAM, IPPROTO_UDP);
 			if (cd->usock==-1) {
 				perror("unconnected UDP socket creation failed");
@@ -639,7 +642,6 @@ int set_target(struct sockaddr *adr, ip_addr_t target, int port, int socket, int
 
 	if (socket != -1) {
 		sa_len = target.af == AF_INET6 ? sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in);
-		printf("sa_len %d\n", sa_len);
 		if (connect(socket, adr, sa_len) == -1) {
 			perror("connecting socket failed");
 			exit_code(2);

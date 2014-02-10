@@ -172,7 +172,9 @@ ip_addr_t getaddress(char *host) {
 		exit_code(2);
 	}
 
+#ifdef DEBUG
 	printf("looking up '%s'\n", host);
+#endif
 
 	/* try the system's own resolution mechanism for dns lookup:
 	 required only for domain names.

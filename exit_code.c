@@ -29,12 +29,35 @@
 #endif
 
 #include "exit_code.h"
+#include <execinfo.h>
 
 enum exit_modes exit_mode = EM_DEFAULT;
 
+#define CALL_STACK_SZ 10
+static void * call_stack[CALL_STACK_SZ];
+
+/* prints a backtrace of up to CALL_STACK_SZ size, to include
+   function names build with -rdynamic */
+void print_backtrace()
+{
+	int i = 0;
+	char ** stack = NULL;
+
+	i = backtrace(call_stack, CALL_STACK_SZ);
+
+	stack = backtrace_symbols(call_stack, i);
+
+	while(i--) {
+		printf("%s\n", stack[i]);
+	}
+
+	free(stack);
+}
+
 void exit_code(int code)
 {
-
+	
+	print_backtrace();
 	switch(exit_mode) {
 		case EM_DEFAULT:	
 			if (code == 4) {

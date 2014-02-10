@@ -56,7 +56,7 @@
 #  define NS_HFIXEDSZ  12
 # endif
  int caport;
- unsigned long caadr;
+ ip_addr_t caadr;
  char *ca_tmpname;
  ares_channel channel;
 
@@ -65,30 +65,75 @@
 #include "helper.h"
 #include "exit_code.h"
 
-/* returns 1 if the string an IP address otherwise zero */
-int is_ip(char *str) {
-	int i = 0;
-	int dotcount = 0;
+/* returns 1 if the address family is IPv4 or IPv6 */
+int is_ip_af(int af)
+{
+	return af == AF_INET || af == AF_INET6;
+}
 
-	/*try understanding if this is a valid ip address
-	we are skipping the values of the octets specified here.
-	for instance, this code will allow 952.0.320.567 through*/
-	while (*str != '\0')
+/* returns the address family for a numerical address */
+int get_address_family(char *str)
+{
+	struct addrinfo hint, *res=0 ;
+	int af;
+
+	memset(&hint, 0, sizeof(hint));
+	hint.ai_family = PF_UNSPEC;
+	hint.ai_flags  = AI_NUMERICHOST;
+	if (getaddrinfo(str, NULL, &hint, &res))
+		return AF_UNSPEC;
+	af = res->ai_family;
+	freeaddrinfo(res);
+	return af;
+}
+
+/* returns 1 if the string is an IP address otherwise zero */
+int is_ip(char *str)
+{
+	return is_ip_af(get_address_family(str));
+}
+
+/* returns the size of the in_addr structure for this address family or 0 if not supported */
+int get_in_addr_sz(int af)
+{
+	switch(af)
 	{
-		for (i = 0; i < 3; i++, str++)
-			if (isdigit((int)*str) == 0)
-				break;
-		if (*str != '.')
-			break;
-		str++;
-		dotcount++;
+		case AF_INET:  return sizeof(struct in_addr);
+		case AF_INET6: return sizeof(struct in6_addr);
+		default: return 0;
+	}
+}
+
+
+/* returns an in_addr or in6_addr or NULL if af is not one of AF_INET or AF_INET6 */
+void * get_in_addr(int af)
+{
+	int sz;
+
+	sz = get_in_addr_sz(af);
+
+	if(!sz)
+		return NULL;
+
+	return malloc(get_in_addr_sz(af));
+}
+
+/* */
+int set_ip_address(ip_addr_t * ip, struct addrinfo * addr)
+{
+	if(ip == NULL || addr == NULL)
+		return -1;
+
+	switch(addr->ai_family)
+	{
+		case AF_INET:  ip->v4 = ((struct sockaddr_in*)addr->ai_addr)->sin_addr;
+		case AF_INET6: ip->v6 = ((struct sockaddr_in6*)addr->ai_addr)->sin6_addr;
+		default: return -1;
 	}
 
-	/* three dots with upto three digits in before, between and after ? */
-	if (dotcount == 3 && i > 0 && i <= 3)
-		return 1;
-	else
-		return 0;
+	ip->af = addr->ai_family;
+
+	return 0;
 }
 
 /* take either a dot.decimal string of ip address or a 
@@ -103,13 +148,31 @@ contact: farhan@hotfoon.com
   this is convenient as 0 means 'this' host and the traffic of
   a badly behaving dns system remains inside (you send to 0.0.0.0)
 */
+ip_addr_t getaddress(char *host) {
+	ip_addr_t addr;
+	struct addrinfo * res = NULL;
+	int af, ret;
 
-unsigned long getaddress(char *host) {
-	struct hostent* pent;
-	long l, *lp;
+	memset(&addr, 0, sizeof(ip_addr_t));
 
-	if (is_ip(host))
-		return inet_addr(host);
+	af = get_address_family(host);
+	if(is_ip_af(af))
+	{
+#ifdef DEBUG
+		printf("got an ip address: '%s'\n", host);
+#endif
+		addr.af = af;
+		ret = inet_pton(af, host, &addr);
+		if(ret == 1)
+			return addr;
+		if(ret == 0)
+			fprintf(stderr, "invalid address: '%s'\n", host);
+		else if(ret == -1)
+			fprintf(stderr, "invalid address faùily '%d'\n", af);
+		exit_code(2);
+	}
+
+	printf("looking up '%s'\n", host);
 
 	/* try the system's own resolution mechanism for dns lookup:
 	 required only for domain names.
@@ -123,22 +186,23 @@ unsigned long getaddress(char *host) {
 	 although expensive, this is a must to allow OS to take
 	 the decision to expire the DNS records as it deems fit.
 	*/
-	pent = gethostbyname(host);
-	if (!pent) {
-		printf("'%s' is unresolveable\n", host);
+	ret = getaddrinfo(host, NULL, NULL, &res);
+	if(ret) {
+		fprintf(stderr, "'%s' is unresolveable: %s\n", host, gai_strerror(ret));
 		exit_code(2);
 	}
-	lp = (long *) (pent->h_addr);
-	l = *lp;
-	return l;
+	set_ip_address(&addr, res);
+	freeaddrinfo(res);
+	return addr;
 }
 
 #ifdef HAVE_CARES_H
 static const unsigned char *parse_rr(const unsigned char *aptr, const unsigned char *abuf, int alen) {
 	char *name;
 	long len;
-	int status, type, dnsclass, dlen;
+	int status, type, dnsclass, dlen, af;
 	struct in_addr addr;
+	struct in6_addr addr6;
 
 #ifdef DEBUG
 	printf("ca_tmpname: %s\n", ca_tmpname);
@@ -189,8 +253,9 @@ static const unsigned char *parse_rr(const unsigned char *aptr, const unsigned c
 #ifdef DEBUG
 		printf("SRV name: %s\n", name);
 #endif
-		if (is_ip(name)) {
-			caadr = inet_addr(name);
+		af = get_address_family(name);
+		if (is_ip_af(af)) {
+			inet_pton(af, name, &caadr);
 			free(name);
 		}
 		else {
@@ -211,7 +276,14 @@ static const unsigned char *parse_rr(const unsigned char *aptr, const unsigned c
 	else if (type == CARES_TYPE_A) {
 		if (dlen == 4 && STRNCASECMP(ca_tmpname, name, strlen(ca_tmpname)) == 0) {
 			memcpy(&addr, aptr, sizeof(struct in_addr));
-			caadr = addr.s_addr;
+			caadr.v4.s_addr = addr.s_addr;
+		}
+		free(name);
+	}
+	else if (type == CARES_TYPE_AAAA) {
+		if (dlen == 4 && STRNCASECMP(ca_tmpname, name, strlen(ca_tmpname)) == 0) {
+			memcpy(&addr6, aptr, sizeof(struct in6_addr));
+			memcpy(&caadr, &addr6, sizeof(struct in6_addr));
 		}
 		free(name);
 	}
@@ -250,7 +322,7 @@ static const unsigned char *skip_query(const unsigned char *aptr, const unsigned
 	return aptr;
 }
 
-static void cares_callback(void *arg, int status, unsigned char *abuf, int alen) {
+static void cares_callback(void *arg, int status, int timeouts, unsigned char *abuf, int alen) {
 	int i;
 	unsigned int ancount, nscount, arcount;
 	const unsigned char *aptr;
@@ -279,30 +351,30 @@ static void cares_callback(void *arg, int status, unsigned char *abuf, int alen)
 
 	aptr = skip_query(aptr, abuf, alen);
 
-	for (i = 0; i < ancount && caadr == 0; i++) {
+	for (i = 0; i < ancount && !assigned(caadr); i++) {
 		if (ca_tmpname == NULL)
 			aptr = parse_rr(aptr, abuf, alen);
 		else
 			aptr = skip_rr(aptr, abuf, alen);
 	}
-	if (caadr == 0) {
+	if (!assigned(caadr)) {
 		for (i = 0; i < nscount; i++) {
 			aptr = skip_rr(aptr, abuf, alen);
 		}
-		for (i = 0; i < arcount && caadr == 0; i++) {
+		for (i = 0; i < arcount && !assigned(caadr); i++) {
 			aptr = parse_rr(aptr, abuf, alen);
 		}
 	}
 }
 
-inline unsigned long srv_ares(char *host, int *port, char *srv) {
+inline ip_addr_t srv_ares(char *host, int *port, char *srv) {
 	int nfds, count, srvh_len;
 	char *srvh;
 	fd_set read_fds, write_fds;
 	struct timeval *tvp, tv;
 
 	caport = 0;
-	caadr = 0;
+	memset(&caadr, 0, sizeof(ip_addr_t));
 	ca_tmpname = NULL;
 #ifdef DEBUG
 	printf("!!! ARES query !!!\n");
@@ -345,7 +417,7 @@ inline unsigned long srv_ares(char *host, int *port, char *srv) {
 	printf("end of while\n");
 #endif
 	*port = caport;
-	if (caadr == 0 && ca_tmpname != NULL) {
+	if (!assigned(caadr) && ca_tmpname != NULL) {
 		caadr = getaddress(ca_tmpname);
 	}
 	if (ca_tmpname != NULL)
@@ -418,7 +490,7 @@ inline unsigned long srv_ruli(char *host, int *port, char *srv) {
 }
 #endif // HAVE_RULI_H
 
-unsigned long getsrvaddress(char *host, int *port, char *srv) {
+ip_addr_t getsrvaddress(char *host, int *port, char *srv) {
 #ifdef HAVE_RULI_H
 	return srv_ruli(host, port, srv);
 #else
@@ -434,8 +506,10 @@ unsigned long getsrvaddress(char *host, int *port, char *srv) {
  * address and fills the port and transport if a suitable SRV record
  * exists. Otherwise it returns 0. The function follows 3263: first
  * TLS, then TCP and finally UDP. */
-unsigned long getsrvadr(char *host, int *port, unsigned int *transport) {
-	unsigned long adr = 0;
+ip_addr_t getsrvadr(char *host, int *port, unsigned int *transport) {
+	ip_addr_t adr;
+
+	memset(&adr, 0, sizeof(ip_addr_t));
 
 #ifdef HAVE_SRV
 	int srvport = 5060;
@@ -458,7 +532,7 @@ unsigned long getsrvadr(char *host, int *port, unsigned int *transport) {
 
 #ifdef WITH_TLS_TRANSP
 	adr = getsrvaddress(host, &srvport, SRV_SIP_TLS);
-	if (adr != 0) {
+	if (assigned(adr)) {
 		*transport = SIP_TLS_TRANSPORT;
 		if (verbose > 1)
 			printf("using SRV record: %s.%s:%i\n", SRV_SIP_TLS, host, srvport);
@@ -468,14 +542,14 @@ unsigned long getsrvadr(char *host, int *port, unsigned int *transport) {
 	else {
 #endif
 		adr = getsrvaddress(host, &srvport, SRV_SIP_TCP);
-		if (adr != 0) {
+		if (assigned(adr)) {
 			*transport = SIP_TCP_TRANSPORT;
 			if (verbose > 1)
 				printf("using SRV record: %s.%s:%i\n", SRV_SIP_TCP, host, srvport);
 		}
 		else {
 			adr = getsrvaddress(host, &srvport, SRV_SIP_UDP);
-			if (adr != 0) {
+			if (assigned(adr)) {
 				*transport = SIP_UDP_TRANSPORT;
 				if (verbose > 1)
 					printf("using SRV record: %s.%s:%i\n", SRV_SIP_UDP, host, srvport);

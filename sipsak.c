@@ -290,7 +290,7 @@ int main(int argc, char *argv[])
 	con_dis=auth_username=from_uri=headers = NULL;
 	scheme = user = host = backup = req = rep = rec = NULL;
 	re = NULL;
-	address= 0;
+	memset(&address, 0, sizeof(ip_addr_t));
 	transport=tsp = 0;
 	rport = port = 0;
 	expires_t = USRLOC_EXP_DEF;
@@ -307,6 +307,9 @@ int main(int argc, char *argv[])
 	while ((c=getopt_long(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:Xz:", l_opts, &option_index)) != EOF){
 #else
 	while ((c=getopt(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:z:")) != EOF){
+#endif
+#ifdef DEBUG
+		printf("parsing arg '%c'\n", c);
 #endif
 		switch(c){
 			case 'a':
@@ -517,12 +520,12 @@ int main(int argc, char *argv[])
 						if (tsp != 0)
 							transport = tsp;
 					}
-					if (!address) {
+					if (!assigned(address)) {
 						address = getaddress(host);
-						if (address && verbose > 1)
+						if (assigned(address) && verbose > 1)
 							printf("using A record: %s\n", host);
 					}
-					if (!address){
+					if (!assigned(address)){
 						fprintf(stderr, "error:unable to determine the outbound proxy "
 							"address\n");
 						exit_code(2);
@@ -562,6 +565,9 @@ int main(int argc, char *argv[])
 				randtrash=1;
 				break;
 			case 's':
+#ifdef DEBUG
+				printf("parsing uri '%s'\n", optarg);
+#endif
 				parse_uri(optarg, &scheme, &user, &host, &port);
 				if (scheme == NULL) {
 					fprintf(stderr, "error: missing scheme in sip uri\n");
@@ -588,23 +594,31 @@ int main(int argc, char *argv[])
 				if (port && !rport) {
 					rport = port;
 				}
+#ifdef DEBUG
+				printf("scheme: '%s'\n", scheme);
+				if(user) {
+					printf("user: '%s'\n", user);
+				}
+				printf("host: '%s'\n", host);
+				printf("port: '%d'\n", port);
+#endif
 				if (is_ip(domainname)) {
 					address = getaddress(domainname);
 					if (transport == 0)
 						transport = SIP_UDP_TRANSPORT;
 				}
 				else {
-					if (!rport && !address) {
+					if (!rport && !assigned(address)) {
 						address = getsrvadr(domainname, &rport, &tsp);
 						if (tsp != 0)
 							transport = tsp;
 					}
-					if (!address) {
+					if (!assigned(address)) {
 						address = getaddress(domainname);
-						if (address && verbose > 1)
+						if (assigned(address) && verbose > 1)
 							printf("using A record: %s\n", domainname);
 					}
-					if (!address){
+					if (!assigned(address)){
 						fprintf(stderr, "error:unable to determine the IP address for: %s\n", domainname);
 						exit_code(2);
 					}
@@ -704,6 +718,9 @@ int main(int argc, char *argv[])
 		}
 	}
 
+#ifdef DEBUG
+	printf("done parsing arguments\n");
+#endif
 	if (rport == 0) {
 		rport =  5060;
 	}
@@ -884,8 +901,14 @@ int main(int argc, char *argv[])
 			exit_code(2);
 	}
 
+#ifdef DEBUG
+	printf("looking up our fqdn\n");
+#endif
 	/* determine our hostname */
 	get_fqdn();
+#ifdef DEBUG
+	printf("fqdn: %s\n", fqdn);
+#endif
 	
 	/* this is not a cryptographic random number generator,
 	   but hey this is only a test-tool => should be satisfying*/

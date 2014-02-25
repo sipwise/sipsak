@@ -430,13 +430,15 @@ inline ip_addr_t srv_ares(char *host, int *port, char *srv) {
 #endif // HAVE_CARES_H
 
 #ifdef HAVE_RULI_H
-inline unsigned long srv_ruli(char *host, int *port, char *srv) {
+inline ip_addr_t srv_ruli(char *host, int *port, char *srv) {
 	int srv_code;
 	int ruli_opts = RULI_RES_OPT_SEARCH | RULI_RES_OPT_SRV_NOINET6 | RULI_RES_OPT_SRV_NOSORT6 | RULI_RES_OPT_SRV_NOFALL;
+	ip_addr_t ip;
 #ifdef RULI_RES_OPT_SRV_CNAME
 	ruli_opts |= RULI_RES_OPT_SRV_CNAME;
 #endif
 
+	memset(&ip, 0, sizeof(ip_addr_t));
 	ruli_sync_t *sync_query = ruli_sync_query(srv, host, *port, ruli_opts);
 
 	/* sync query failure? */
@@ -463,7 +465,7 @@ inline unsigned long srv_ruli(char *host, int *port, char *srv) {
 		if (verbose > 1)
 			printf("SRV query failed for: %s, srv_code=%d, rcode=%d\n", host, srv_code, rcode);
 		ruli_sync_delete(sync_query);
-		return 0;
+		return ip;
 	}
 
 	ruli_list_t *srv_list = ruli_sync_srv_list(sync_query);
@@ -473,7 +475,7 @@ inline unsigned long srv_ruli(char *host, int *port, char *srv) {
 	if (srv_list_size < 1) {
 		if (verbose > 1)
 			printf("No SRV record: %s.%s\n", srv, host);
-		return 0;
+		return ip;
 	}
 
 	ruli_srv_entry_t *entry = (ruli_srv_entry_t *) ruli_list_get(srv_list, 0);
@@ -488,7 +490,17 @@ inline unsigned long srv_ruli(char *host, int *port, char *srv) {
 
 	*port = entry->port;
 	ruli_addr_t *addr = (ruli_addr_t *) ruli_list_get(addr_list, 0);
-	return addr->addr.ipv4.s_addr;
+	switch (ruli_addr_family(addr)) {
+		case PF_INET:
+			ip.v4 = ruli_addr_inet(addr);
+			break;
+		case PF_INET6:
+			ip.v6 = ruli_addr_inet6(addr);
+			break;
+		default:
+			break;
+	}
+	return ip;
 }
 #endif // HAVE_RULI_H
 

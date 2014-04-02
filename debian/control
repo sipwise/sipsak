@@ -2,8 +2,11 @@ Source: ngcp-sipsak
 Section: net
 Priority: optional
 Maintainer: Sipwise Development Team <support@sipwise.com>
-Build-Depends: debhelper (>= 4.0.0), libgnutls-dev, libruli4-dev, pkg-config
-Standards-Version: 3.9.3
+Build-Depends: debhelper (>= 4.0.0),
+               libgnutls-dev,
+               libruli4-dev,
+               pkg-config
+Standards-Version: 3.9.5
 
 Package: ngcp-sipsak
 Architecture: any

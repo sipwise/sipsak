@@ -479,9 +479,8 @@ void parse_uri(char *uri, char **scheme, char **user, char **host, int *port)
 				*user = ++col;
 				*host = ++at;
 				if (**host == '[') {
-					(*host)++;
 					if((col2=strchr(*host,']'))!=NULL) {
-							*col2 = '\0';
+							*col2++;
 					}
 					if ((col2=strchr(++col2,':'))!=NULL) {
 						*col2 = '\0';

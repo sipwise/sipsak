@@ -45,7 +45,11 @@ struct sipsak_sr_time {
 };
 
 struct sipsak_con_data {
-	struct sockaddr_in adr;
+	union {
+		struct sockaddr      adr;
+		struct sockaddr_in   in_adr;
+		struct sockaddr_in6 in6_adr;
+	};
 	int csock;
 	int usock;
 	int dontsend;
@@ -86,5 +90,5 @@ int recv_message(char *buf, int size, int inv_trans,
 			struct sipsak_counter *count, struct sipsak_con_data *cd,
 			struct sipsak_regexp *reg);
 
-int set_target(struct sockaddr_in *adr, unsigned long target, int port, int socket, int connected);
+int set_target(struct sockaddr *adr, ip_addr_t target, int port, int socket, int connected);
 #endif

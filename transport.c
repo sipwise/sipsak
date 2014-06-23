@@ -70,23 +70,48 @@
 int rawsock;
 #endif
 
+void init_con_data(struct sipsak_con_data *cd) {
+	switch(address.af) {
+		case AF_INET:
+#ifdef DEBUG
+			printf("ipv4 bind\n");
+#endif
+			memset(&cd->adr, 0, sizeof(struct sockaddr_in));
+			cd->in_adr.sin_family = AF_INET;
+			cd->in_adr.sin_addr.s_addr = htonl( INADDR_ANY);
+			cd->in_adr.sin_port = htons((short)lport);
+			break;
+		case AF_INET6:
+#ifdef DEBUG
+			printf("ipv6 bind\n");
+#endif
+			memset(&cd->adr, 0, sizeof(struct sockaddr_in6));
+			cd->in6_adr.sin6_family = AF_INET6;
+			cd->in6_adr.sin6_addr = in6addr_any;
+			cd->in6_adr.sin6_port = htons((short)lport);
+			break;
+		default:
+			fprintf(stderr, "invalid address family: %d\n", cd->in_adr.sin_family);
+			exit_code(2);
+	}
+}
+
 void create_sockets(struct sipsak_con_data *cd) {
 	socklen_t slen;
 
-	memset(&(cd->adr), 0, sizeof(struct sockaddr_in));
-	cd->adr.sin_family = AF_INET;
-	cd->adr.sin_addr.s_addr = htonl( INADDR_ANY);
-	cd->adr.sin_port = htons((short)lport);
+	init_con_data(cd);
+
+	slen = address.af == AF_INET6 ? sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in);
 
 	if (transport == SIP_UDP_TRANSPORT) {
 		/* create the un-connected socket */
 		if (!symmetric) {
-			cd->usock = (int)socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+			cd->usock = (int)socket(address.af, SOCK_DGRAM, IPPROTO_UDP);
 			if (cd->usock==-1) {
 				perror("unconnected UDP socket creation failed");
 				exit_code(2);
 			}
-			if (bind(cd->usock, (struct sockaddr *) &(cd->adr), sizeof(struct sockaddr_in) )==-1) {
+			if (bind(cd->usock, &cd->adr, slen)==-1) {
 				perror("unconnected UDP socket binding failed");
 				exit_code(2);
 			}
@@ -95,34 +120,35 @@ void create_sockets(struct sipsak_con_data *cd) {
 
 #ifdef RAW_SUPPORT
 		/* try to create the raw socket */
-		rawsock = (int)socket(PF_INET, SOCK_RAW, IPPROTO_ICMP);
+		rawsock = (int)socket(address.af, SOCK_RAW, IPPROTO_ICMP);
 		if (rawsock==-1) {
 			if (verbose>1)
 				fprintf(stderr, "warning: need raw socket (root privileges) to receive all ICMP errors\n");
 #endif
 			/* create the connected socket as a primitve alternative to the 
 			   raw socket*/
-			cd->csock = (int)socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+			cd->csock = (int)socket(address.af, SOCK_DGRAM, IPPROTO_UDP);
 			if (cd->csock==-1) {
 				perror("connected UDP socket creation failed");
 				exit_code(2);
 			}
 
-			if (!symmetric)
-				cd->adr.sin_port = htons((short)0);
-			if (bind(cd->csock, (struct sockaddr *) &(cd->adr), sizeof(struct sockaddr_in) )==-1) {
+			if (!symmetric) {
+				cd->in_adr.sin_port = htons((short)0);
+			}
+			if (bind(cd->csock, &cd->adr, slen)==-1) {
 				perror("connected UDP socket binding failed");
 				exit_code(2);
 			}
 #ifdef RAW_SUPPORT
 		}
 		else if (symmetric) {
-			cd->csock = (int)socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+			cd->csock = (int)socket(address.af, SOCK_DGRAM, IPPROTO_UDP);
 			if (cd->csock==-1) {
 				perror("connected UDP socket creation failed");
 				exit_code(2);
 			}
-			if (bind(cd->csock, (struct sockaddr *) &(cd->adr), sizeof(struct sockaddr_in) )==-1) {
+			if (bind(cd->csock, &cd->adr, slen)==-1) {
 				perror("connected UDP socket binding failed");
 				exit_code(2);
 			}
@@ -130,12 +156,12 @@ void create_sockets(struct sipsak_con_data *cd) {
 #endif
 	}
 	else {
-		cd->csock = (int)socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+		cd->csock = (int)socket(address.af, SOCK_STREAM, IPPROTO_TCP);
 		if (cd->csock==-1) {
 			perror("TCP socket creation failed");
 			exit_code(2);
 		}
-		if (bind(cd->csock, (struct sockaddr *) &(cd->adr), sizeof(struct sockaddr_in) )==-1) {
+		if (bind(cd->csock, &cd->adr, slen)==-1) {
 			perror("TCP socket binding failed");
 			exit_code(2);
 		}
@@ -143,13 +169,12 @@ void create_sockets(struct sipsak_con_data *cd) {
 
 	/* for the via line we need our listening port number */
 	if (lport==0){
-		memset(&(cd->adr), 0, sizeof(struct sockaddr_in));
-		slen=sizeof(struct sockaddr_in);
+		memset(&(cd->adr), 0, sizeof(struct sockaddr_in6));
 		if (symmetric || transport != SIP_UDP_TRANSPORT)
-			getsockname(cd->csock, (struct sockaddr *) &(cd->adr), &slen);
+			getsockname(cd->csock, &cd->adr, &slen);
 		else
-			getsockname(cd->usock, (struct sockaddr *) &(cd->adr), &slen);
-		lport=ntohs(cd->adr.sin_port);
+			getsockname(cd->usock, &cd->adr, &slen);
+		lport=ntohs(cd->in_adr.sin_port);
 	}
 }
 
@@ -556,26 +581,68 @@ int recv_message(char *buf, int size, int inv_trans,
 	return ret;
 }
 
+#include <linux/sockios.h>
+#include <net/if.h>
+#include <errno.h>
+
+
 /* clears the given sockaddr, fills it with the given data and if a
  * socket is given connects the socket to the new target */
-int set_target(struct sockaddr_in *adr, unsigned long target, int port, int socket, int connected) {
+int set_target(struct sockaddr *adr, ip_addr_t target, int port, int socket, int connected) {
+	struct sockaddr_in  * sin  = NULL;
+	struct sockaddr_in6 * sin6 = NULL;
+	int sa_len;
+
 	if (socket != -1 && transport != SIP_UDP_TRANSPORT && connected) {
 		if (shutdown(socket, SHUT_RDWR) != 0) {
 			perror("error while shutting down socket");
 		}
 	}
 
-	memset(adr, 0, sizeof(struct sockaddr_in));
-	adr->sin_addr.s_addr = target;
-	adr->sin_port = htons((short)port);
-	adr->sin_family = AF_INET;
-
-#ifdef HAVE_INET_NTOP
-	inet_ntop(adr->sin_family, &adr->sin_addr, &target_dot[0], INET_ADDRSTRLEN);
+#ifdef DEBUG
+	printf("address family: %d\n", target.af);
 #endif
+	switch(target.af) {
+		case AF_INET:
+			memset(adr, 0, sizeof(struct sockaddr_in));
+			sin = (struct sockaddr_in*)adr;
+			sin->sin_addr = target.v4;
+			sin->sin_port = htons((short)port);
+			sin->sin_family = AF_INET;
+		#ifdef HAVE_INET_NTOP
+			inet_ntop(AF_INET, &sin->sin_addr, target_dot, INET_ADDRSTRLEN);
+		#endif
+
+			break;
+		case AF_INET6:
+			memset(adr, 0, sizeof(struct sockaddr_in6));
+			sin6 = (struct sockaddr_in6*)adr;
+			memcpy(&sin6->sin6_addr, &target.v6, sizeof(struct in6_addr));
+			sin6->sin6_port = htons((short)port);
+			sin6->sin6_family = AF_INET6;
+			/*
+			// link local only
+			struct ifreq iface;
+			memset(&iface,0,sizeof(struct ifreq));
+			strcat(iface.ifr_name, "eth0");
+			if(ioctl(socket, SIOCGIFINDEX, &iface)) {
+				fprintf(stderr, "=== ioctl error: %s\n", strerror(errno));
+				exit_code(2);
+			}
+			sin6->sin6_scope_id = iface.ifr_ifindex;
+			*/
+		#ifdef HAVE_INET_NTOP
+			inet_ntop(AF_INET6, &sin6->sin6_addr, target_dot, INET_ADDRSTRLEN);
+		#endif
+
+			break;
+		default:
+			exit_code(2);
+	}
 
 	if (socket != -1) {
-		if (connect(socket, (struct sockaddr *)adr, sizeof(struct sockaddr_in)) == -1) {
+		sa_len = target.af == AF_INET6 ? sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in);
+		if (connect(socket, adr, sa_len) == -1) {
 			perror("connecting socket failed");
 			exit_code(2);
 		}

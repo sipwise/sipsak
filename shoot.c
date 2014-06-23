@@ -93,8 +93,22 @@ static inline void create_usern(char *target, char *username, int number)
 	}
 }
 
+int __assigned(ip_addr_t x, int sz)
+{
+	int i = 0;
+
+	while (i != sz) {
+		if (x.v6.s6_addr[i++])
+			return 1;
+	}
+
+	return 0;
+}
+
+#define assigned(x) __assigned(x, sizeof(x))
+
 /* tries to take care of a redirection */
-void handle_3xx(struct sockaddr_in *tadr)
+void handle_3xx(struct sockaddr *tadr)
 {
 	char *uscheme, *uuser, *uhost, *contact;
 
@@ -122,13 +136,13 @@ void handle_3xx(struct sockaddr_in *tadr)
 		new_transaction(req);
 		/* extract the needed information*/
 		rport = 0;
-		address = 0;
+		memset(&address, 0, sizeof(ip_addr_t));
 		parse_uri(contact, &uscheme, &uuser, &uhost, &rport);
 		if (!rport)
 			address = getsrvadr(uhost, &rport, &transport);
-		if (!address)
+		if (!assigned(address))
 			address = getaddress(uhost);
-		if (!address){
+		if (!assigned(address)){
 			fprintf(stderr, "error: cannot determine host "
 					"address from Contact of redirect:"
 					"\n%s\n", rec);
@@ -945,7 +959,7 @@ void shoot(char *buf, int buff_size)
 			set_maxforw(req, maxforw);
 	}
 
-	cdata.connected = set_target(&(cdata.adr), address, rport, cdata.csock, cdata.connected);
+	cdata.connected = set_target(&cdata.adr, address, rport, cdata.csock, cdata.connected);
 
 	/* here we go until someone decides to exit */
 	while(1) {

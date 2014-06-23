@@ -478,7 +478,15 @@ void parse_uri(char *uri, char **scheme, char **user, char **host, int *port)
 				*scheme = uri;
 				*user = ++col;
 				*host = ++at;
-				if ((col2=strchr(*host,':'))!=NULL) {
+				if (**host == '[') {
+					if((col2=strchr(*host,']'))!=NULL) {
+							*col2++;
+					}
+					if ((col2=strchr(++col2,':'))!=NULL) {
+						*col2 = '\0';
+						*port = str_to_int(++col2);
+					}
+				} else if ((col2=strchr(*host,':'))!=NULL) {
 					*col2 = '\0';
 					*port = str_to_int(++col2);
 				}
@@ -492,7 +500,17 @@ void parse_uri(char *uri, char **scheme, char **user, char **host, int *port)
 		else {
 			*col = '\0';
 			col++;
-			if ((col2=strchr(col,':'))!=NULL) {
+			if (*col == '[') {
+				*scheme = uri;
+				*host = ++col;
+				if((col2=strchr(*host,']'))!=NULL) {
+						*col2 = '\0';
+				}
+				if ((col2=strchr(++col2,':'))!=NULL) {
+					*col2 = '\0';
+					*port = str_to_int(++col2);
+				}
+			} else if ((col2=strchr(col,':'))!=NULL) {
 				*col2 = '\0';
 				*scheme = uri;
 				*host = col;

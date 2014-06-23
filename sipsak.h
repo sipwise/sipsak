@@ -294,8 +294,28 @@
 #endif
 #define SIPSAK_HASHHEXLEN 2 * SIPSAK_HASHLEN
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+
 /* lots of global variables. ugly but makes life easier. */
-unsigned long address;
+//unsigned long address;
+typedef struct ip_addr_t {
+	union {
+		struct in_addr  v4;
+		struct in6_addr v6;
+	};
+	int af;
+} ip_addr_t;
+
+ip_addr_t address;
+
+
+int __assigned(ip_addr_t addr, int sz);
+#define assigned(x) __assigned(x, sizeof(x))
+
+
 unsigned int nonce_count, transport;
 int sleep_ms, processes, cseq_counter;
 int verbose, nameend, namebeg, expires_t, flood, warning_ext, invite, message;

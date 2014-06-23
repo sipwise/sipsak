@@ -4975,7 +4975,7 @@ $as_echo_n "checking for ares_version.h... " >&6; }
 	ares_libdir=NONE
 	ares_libcall=NONE
 	ares_incdirs="/usr/include /usr/local/include /sw/include"
-	ares_libdirs="/usr/lib64 /usr/lib /usr/local/lib64 /usr/local/lib /sw/lib"
+	ares_libdirs="/usr/lib64 /usr/lib /usr/local/lib64 /usr/local/lib /sw/lib /usr/lib/x86_64-linux-gnu"
 	ares_libexten=".so .dylib .a"
 
 	for dir in $ares_incdirs; do

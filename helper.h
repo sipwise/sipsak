@@ -41,6 +41,7 @@
 
 #ifdef HAVE_CARES_H
 # define CARES_TYPE_A 1
+# define CARES_TYPE_AAAA 28
 # define CARES_TYPE_CNAME 5
 # define CARES_TYPE_SRV 33
 # define CARES_CLASS_C_IN 1
@@ -62,9 +63,9 @@
 
 int is_ip(char *str);
 
-unsigned long getaddress(char *host);
+ip_addr_t getaddress(char *host);
 
-unsigned long getsrvadr(char *host, int *port, unsigned int *transport);
+ip_addr_t getsrvadr(char *host, int *port, unsigned int *transport);
 
 void get_fqdn();
 

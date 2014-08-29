@@ -1,3 +1,9 @@
+ngcp-sipsak (0.9.6+sipwise6+0~mr3.4.3.0) unstable; urgency=low
+
+  * New release.
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Fri, 29 Aug 2014 16:26:32 +0200
+
 ngcp-sipsak (0.9.6+sipwise6+0~mr3.4.2.0) unstable; urgency=low
 
   * New release.

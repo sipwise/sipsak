@@ -1,3 +1,12 @@
+ngcp-sipsak (0.9.6+sipwise6+0~mr3.6.0.0) unstable; urgency=low
+
+  [ Michael Prokop ]
+  * [905dd11] MT#7335 Use libgnutls28-dev as alternative Build-Depends for Debian/jessie support
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Thu, 09 Oct 2014 16:56:43 +0200
+
 ngcp-sipsak (0.9.6+sipwise6+0~mr3.5.0.0) unstable; urgency=low
 
   * New release.

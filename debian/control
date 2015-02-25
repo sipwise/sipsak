@@ -6,7 +6,7 @@ Build-Depends: debhelper (>= 4.0.0),
                libgnutls28-dev | libgnutls-dev,
                libruli4-dev,
                pkg-config
-Standards-Version: 3.9.5
+Standards-Version: 3.9.6
 
 Package: ngcp-sipsak
 Architecture: any

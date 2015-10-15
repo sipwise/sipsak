@@ -149,6 +149,7 @@ void print_long_help() {
 		"                             and reliable transports (default: 64)\n"
 		"  --transport=STRING         specify transport to be used\n"
 		"  --headers=STRING           adds additional headers to the request\n"
+		"  --local-ip=STRING          specify local ip address to be used\n"
 		);
 	exit_code(0);
 }
@@ -215,6 +216,7 @@ void print_help() {
 		"                    and reliable transports (default: 64)\n"
 		"  -E STRING         specify transport to be used\n"
 		"  -j STRING         adds additional headers to the request\n"
+		"  -k STRING         specify local ip address to be used\n"
 		);
 		exit_code(0);
 }
@@ -307,7 +309,7 @@ int main(int argc, char *argv[])
 #ifdef HAVE_GETOPT_LONG
 	while ((c=getopt_long(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:k:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:Xz:", l_opts, &option_index)) != EOF){
 #else
-	while ((c=getopt(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:z:")) != EOF){
+	while ((c=getopt(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:k:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:z:")) != EOF){
 #endif
 		switch(c){
 			case 'a':

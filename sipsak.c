@@ -277,6 +277,7 @@ int main(int argc, char *argv[])
 		{"timeout-factor", 1, 0, 'D'},
 		{"transport", 1, 0, 'E'},
 		{"headers", 1, 0, 'j'},
+		{"local-ip", 1, 0, 'k'},
 		{0, 0, 0, 0}
 	};
 #endif
@@ -287,7 +288,7 @@ int main(int argc, char *argv[])
 	namebeg=nameend=maxforw= -1;
 	numeric=via_ins=redirects=fix_crlf=processes = 1;
 	username=password=replace_str=hostname=contact_uri=mes_body = NULL;
-	con_dis=auth_username=from_uri=headers = NULL;
+	con_dis=auth_username=from_uri=headers=local_ip = NULL;
 	scheme = user = host = backup = req = rep = rec = NULL;
 	re = NULL;
 	address= 0;
@@ -304,7 +305,7 @@ int main(int argc, char *argv[])
 
 	/* lots of command line switches to handle*/
 #ifdef HAVE_GETOPT_LONG
-	while ((c=getopt_long(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:Xz:", l_opts, &option_index)) != EOF){
+	while ((c=getopt_long(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:k:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:Xz:", l_opts, &option_index)) != EOF){
 #else
 	while ((c=getopt(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:z:")) != EOF){
 #endif
@@ -468,6 +469,9 @@ int main(int argc, char *argv[])
 				break;
 			case 'j':
 				headers=optarg;
+				break;
+			case 'k':
+				local_ip=optarg;
 				break;
 			case 'l':
 				lport=str_to_int(optarg);

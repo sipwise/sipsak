@@ -1,3 +1,62 @@
+ngcp-sipsak (0.9.7pre+sipwise6+0~mr4.0.3.0) unstable; urgency=medium
+
+  [ nils-ohlmeier ]
+  * [603085f] -E overrules SRV result
+  * [b931ab3] added option -J to take ha1 instead of password
+  * [32539ca] s/strncopy/strncpy/
+  * [748e60a] made gnutls and ares comparasing non-bash compliant; thanks to Georg Schwarz
+  * [677a35c] fixed gcc 4.1 warnings
+  * [bc2b3f3] increased version to 0.9.7pre and updated to autoconf 2.60
+  * [dc3e286] dont retransmit on reliable transports
+  * [297599d] prevent output at verbosity level zero
+  * [5ffcd84] fixed if -r was porvided before -p with IP address; thanks to Hendrik Scholz
+  * [d6e7ab9] reverted last accident commit except the fix for Hendrik
+  * [05fe28c] s/times/timers/ to prevent name clash
+  * [28cc58d] improved srand initialization according to perl docs. thnks to dsemyonov. closes #8289
+  * [be88d8a] added --disable-ips configure option which allows to compile the oldstyle --numeric behavior
+  * [5e76a06] added some first TLS code. Note: this is not working yet and thus not activated
+  * [8352735] first working TLS transfers
+  * [291d218] more gnutls debug code
+  * [69509a4] added GNU TLS cert chain verification
+  * [e2058c8] beautified error message output
+  * [464febf] option -k only available with TLS support
+  * [b14e972] added beginnign of unit testing
+  * [83a01c8] improved is_number and re-wrote str_to_int (as results from the unit tests)
+  * [3465fe5] made check unit test framework really optional
+  * [0437339] first try of an indent config
+  * [d65fca3] more tests and fixes as results from the tests :)
+  * [93dae22] - re-worked str_to_int one more time as the previous   behavior was broken after the last fix - added a centralized debug message function
+  * [3f37147] added 'star' as special word for the contact option -C
+  * [07fc945] made star really work
+  * [50ef2c5] improved help output message
+  * [c688928] moved UA header to one central define
+  * [b43e848] fixed overwritting of outbound proxy if domainname is an IP; thanks to Alexander Litvak
+  * [9295d05] made TLS transport and debug messages configurable
+  * [e024619] fixed CNAME segfault and added SRV->CNAME resolution
+  * [d89d673] realy respect -D in all cases
+  * [5434c73] added sleep debug message
+  * [d5ed870] fixed infinte value in statics mode
+  * [16e7893] added option -Z to modify SIP_T1 at run time
+  * [0748c97] added syslog support
+  * [326b428] log last request to syylog as well
+  * [b2bc263] - fixed false retransmissions because of wrong cseq in reply - enabled -c parameter for Inivte mode
+  * [306ab3f] moved logging of message in case of regex to only failure case
+  * [af59b4e] print Via warning only in verbose mode - thanks to Juha Heinanen
+  * [f32fd79] - added new options for TLS (ca-cert, client-cert, ignore-cert-failure)   Note: these options are only available as long options - added option to ignore TLS certificate verification errors - made certificate output after TLS handshake more verbose
+  * [6cd26dc] removed un-used variable
+  * [762e039] added mac port dirs to search paths
+
+  [ Peter Lemenkov ]
+  * [9e4065e] Fix for wrong arity of callback function for c-ares
+
+  [ root ]
+  * [471e833] added option -k, --local-ip
+
+  [ Victor Seva ]
+  * [7244a47] MT#17517 debian: use autoreconf
+
+ -- Victor Seva <vseva@sipwise.com>  Fri, 29 Jan 2016 15:44:40 +0100
+
 ngcp-sipsak (0.9.6+sipwise6+0~mr4.0.3.0) unstable; urgency=medium
 
   * New release.

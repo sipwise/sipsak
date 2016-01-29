@@ -18,6 +18,9 @@
 /* Has cares.h */
 #undef HAVE_CARES_H
 
+/* Has check.h */
+#undef HAVE_CHECK_H
+
 /* The crypto lib has MD5 functions */
 #undef HAVE_CRYPTO_WITH_MD5
 
@@ -127,6 +130,9 @@
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
 
+/* Define to 1 if you have the <stdarg.h> header file. */
+#undef HAVE_STDARG_H
+
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
 
@@ -159,6 +165,12 @@
 
 /* Define to 1 if you have the `strtol' function. */
 #undef HAVE_STRTOL
+
+/* Define to 1 if you have the `syslog' function. */
+#undef HAVE_SYSLOG
+
+/* Define to 1 if you have the <syslog.h> header file. */
+#undef HAVE_SYSLOG_H
 
 /* Define to 1 if you have the <sys/param.h> header file. */
 #undef HAVE_SYS_PARAM_H
@@ -193,6 +205,9 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
+/* Oldstyle FQDN behavior */
+#undef OLDSTYLE_FQDN
+
 /* Name of package */
 #undef PACKAGE
 
@@ -222,6 +237,12 @@
 
 /* Define to the type of arg 5 for `select'. */
 #undef SELECT_TYPE_ARG5
+
+/* Skip TLS transport */
+#undef SIPSAK_NO_TLS
+
+/* Enable debug messages */
+#undef SIPSAK_PRINT_DBG
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS

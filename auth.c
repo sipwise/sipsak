@@ -83,7 +83,7 @@ void insert_auth(char *message, char *authreq)
 		fprintf(stderr, "request:\n%s\nresponse:\n%s\nerror: authorization failed\n  "
 			"     request already contains (Proxy-) Authorization, but "
 			"received 40[1|7], see above\n", message, authreq);
-		exit_code(2);
+		exit_code(2, __PRETTY_FUNCTION__, "failed to add auth header, because request contained already one");
 	}
 	/* make a backup of all except the request line because for 
 	   simplicity we insert the auth header direct behind the request line */
@@ -111,12 +111,12 @@ void insert_auth(char *message, char *authreq)
 		if ((begin=STRCASESTR(auth, "Basic"))!=NULL) {
 			fprintf(stderr, "%s\nerror: authentication method Basic is deprecated since"
 				" RFC 3261 and not supported by sipsak\n", authreq);
-			exit_code(3);
+			exit_code(3, __PRETTY_FUNCTION__, "authentication method 'Basic' is deprecated");
 		}
 		if ((begin=STRCASESTR(auth, "Digest"))==NULL) {
 			fprintf(stderr, "%s\nerror: couldn't find authentication method Digest in "
 				"the 40[1|7] response above\n", authreq);
-			exit_code(3);
+			exit_code(3, __PRETTY_FUNCTION__, "missing authentication method 'Digest' in reply");
 		}
 		if ((begin=STRCASESTR(auth, "algorithm="))!=NULL) {
 			begin+=10;
@@ -130,7 +130,7 @@ void insert_auth(char *message, char *authreq)
 #endif
 			else {
 				fprintf(stderr, "\n%s\nerror: unsupported authentication algorithm\n", authreq);
-				exit_code(2);
+				exit_code(2, __PRETTY_FUNCTION__, "unsupported authentication algorithm");
 			}
 		}
 		else {
@@ -201,7 +201,7 @@ void insert_auth(char *message, char *authreq)
 		}
 		else {
 			fprintf(stderr, "%s\nerror: realm not found in 401 above\n", authreq);
-			exit_code(3);
+			exit_code(3, __PRETTY_FUNCTION__, "realm not found in reply");
 		}
 		/* copy opaque if needed */
 		if ((begin=STRCASESTR(auth, OPAQUE_STR))!=NULL) {
@@ -221,7 +221,7 @@ void insert_auth(char *message, char *authreq)
 			if (STRCASESTR(begin, QOPAUTH_STR)==NULL) {
 				fprintf(stderr, "response\n%s\nerror: qop \"auth\" not supported by"
 					" server\n", authreq);
-				exit_code(3);
+				exit_code(3, __PRETTY_FUNCTION__, "qop 'auth' is not supported by server");
 			}
 			qop_auth=1;
 		}
@@ -243,7 +243,7 @@ void insert_auth(char *message, char *authreq)
 		}
 		else {
 			fprintf(stderr, "%s\nerror: nonce not found in 401 above\n", authreq);
-			exit_code(3);
+			exit_code(3, __PRETTY_FUNCTION__, "missing nonce in reply");
 		}
 		/* if qop is supported we need som additional header */
 		if (qop_auth == 1) {
@@ -264,14 +264,19 @@ void insert_auth(char *message, char *authreq)
 			password = EMPTY_STR;
 
 		if (algo == SIPSAK_ALGO_MD5) {
-			MD5Init(&Md5Ctx);
-			MD5Update(&Md5Ctx, usern, (unsigned int)strlen(usern));
-			MD5Update(&Md5Ctx, ":", 1);
-			MD5Update(&Md5Ctx, realm, (unsigned int)strlen(realm));
-			MD5Update(&Md5Ctx, ":", 1);
-			MD5Update(&Md5Ctx, password, (unsigned int)strlen(password));
-			MD5Final(&ha1[0], &Md5Ctx);
-			cvt_hex(&ha1[0], &ha1_hex[0], SIPSAK_HASHLEN_MD5);
+			if (authhash) {
+				strncpy((char*)&ha1_hex[0], authhash, SIPSAK_HASHHEXLEN_MD5);
+			}
+			else {
+				MD5Init(&Md5Ctx);
+				MD5Update(&Md5Ctx, usern, (unsigned int)strlen(usern));
+				MD5Update(&Md5Ctx, ":", 1);
+				MD5Update(&Md5Ctx, realm, (unsigned int)strlen(realm));
+				MD5Update(&Md5Ctx, ":", 1);
+				MD5Update(&Md5Ctx, password, (unsigned int)strlen(password));
+				MD5Final(&ha1[0], &Md5Ctx);
+				cvt_hex(&ha1[0], &ha1_hex[0], SIPSAK_HASHLEN_MD5);
+			}
 
 			MD5Init(&Md5Ctx);
 			MD5Update(&Md5Ctx, method, (unsigned int)strlen(method));
@@ -294,14 +299,19 @@ void insert_auth(char *message, char *authreq)
 		}
 #ifdef HAVE_OPENSSL_SHA1
 		else if (algo == SIPSAK_ALGO_SHA1) {
-			SHA1_Init(&Sha1Ctx);
-			SHA1_Update(&Sha1Ctx, usern, (unsigned int)strlen(usern));
-			SHA1_Update(&Sha1Ctx, ":", 1);
-			SHA1_Update(&Sha1Ctx, realm, (unsigned int)strlen(realm));
-			SHA1_Update(&Sha1Ctx, ":", 1);
-			SHA1_Update(&Sha1Ctx, password, (unsigned int)strlen(password));
-			SHA1_Final(&ha1[0], &Sha1Ctx);
-			cvt_hex(&ha1[0], &ha1_hex[0], SIPSAK_HASHLEN_SHA1);
+			if (authhash) {
+				strncpy((char*)&ha1_hex[0], authhash, SIPSAK_HASHHEXLEN_SHA1);
+			}
+			else {
+				SHA1_Init(&Sha1Ctx);
+				SHA1_Update(&Sha1Ctx, usern, (unsigned int)strlen(usern));
+				SHA1_Update(&Sha1Ctx, ":", 1);
+				SHA1_Update(&Sha1Ctx, realm, (unsigned int)strlen(realm));
+				SHA1_Update(&Sha1Ctx, ":", 1);
+				SHA1_Update(&Sha1Ctx, password, (unsigned int)strlen(password));
+				SHA1_Final(&ha1[0], &Sha1Ctx);
+				cvt_hex(&ha1[0], &ha1_hex[0], SIPSAK_HASHLEN_SHA1);
+			}
 
 			SHA1_Init(&Sha1Ctx);
 			SHA1_Update(&Sha1Ctx, method, (unsigned int)strlen(method));
@@ -334,7 +344,7 @@ void insert_auth(char *message, char *authreq)
 	else {
 		fprintf(stderr, "%s\nerror: couldn't find Proxy- or WWW-Authentication header"
 			" in the 401 response above\n",	authreq);
-		exit_code(3);
+		exit_code(3, __PRETTY_FUNCTION__, "missing authentication header in reply");
 	}
 	if (verbose>1) 
 		printf("authorizing\n");

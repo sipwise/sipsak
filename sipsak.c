@@ -54,6 +54,9 @@
 #ifdef HAVE_GETOPT_H
 # include <getopt.h>
 #endif
+#ifdef HAVE_SYSLOG_H
+# include <syslog.h>
+#endif
 
 #include "helper.h"
 #include "header_f.h"
@@ -91,6 +94,7 @@ void print_version() {
 		);
 }
 
+#ifdef HAVE_GETOPT_LONG
 void print_long_help() {
 	print_version();
 	printf(
@@ -123,7 +127,12 @@ void print_long_help() {
 		"  --outbound-proxy=HOSTNAME  request target (outbound proxy)\n"
 		"  --hostname=HOSTNAME        overwrites the local hostname in all headers\n"
 		"  --max-forwards=NUMBER      the value for the max-forwards header field\n"
-		"  --numeric                  use FQDN instead of IPs in the Via-Line\n");
+#ifdef OLDSTYLE_FQDN
+		"  --numeric                  use IP instead of FQDN in the Via-Line\n"
+#else
+		"  --numeric                  use FQDN instead of IP in the Via-Line\n"
+#endif
+);
 	printf("  --processes=NUMBER         Divide the workflow among the number of processes\n"
 		"  --auth-username=STRING     username for authentication\n"
 		);
@@ -146,12 +155,24 @@ void print_long_help() {
 		"  --symmetric                send and received on the same port\n"
 		"  --from=SIPURI              use the given uri as From in MESSAGE\n"
 		"  --timeout-factor=NUMBER    timeout multiplier for INVITE transactions\n"
-		"                             and reliable transports (default: 64)\n"
+		"                             on non-reliable transports (default: 64)\n"
+		"  --timer-t1=NUMBER          timeout T1 in ms (default: %i)\n"
 		"  --transport=STRING         specify transport to be used\n"
 		"  --headers=STRING           adds additional headers to the request\n"
+		"  --local-ip=STRING          specify local ip address to be used\n"
+		"  --authhash=STRING          ha1 hash for authentication instead of password\n"
+		"  --sylog=NUMBER             log exit message to syslog with given log level\n"
+		, DEFAULT_TIMEOUT
 		);
-	exit_code(0);
+#ifdef WITH_TLS_TRANSP
+	printf("  --tls-ca-cert=FILE         file with the cert of the root CA\n"
+		"  --tls-client-cert=FILE     file with the cert which sipsak will send\n"
+		"  --tls-ignore-cert-failure  ignore failures during the TLS handshake\n"
+		);
+#endif
+	exit_code(0, __PRETTY_FUNCTION__, NULL);
 }
+#endif
 
 /* prints out some usage help and exits */
 void print_help() {
@@ -189,7 +210,11 @@ void print_help() {
 	printf(
 		"  -H HOSTNAME       overwrites the local hostname in all headers\n"
 		"  -m NUMBER         the value for the max-forwards header field\n"
-		"  -n                use FQDN instead of IPs in the Via-Line\n"
+#ifdef OLDSTYLE_FQDN
+		"  -n                use IP instead of FQDN in the Via-Line\n"
+#else
+		"  -n                use FQDN instead of IP in the Via-Line\n"
+#endif
 		"  -i                deactivate the insertion of a Via-Line\n"
 		"  -a PASSWORD       password for authentication\n"
 		"                      (if omitted password=\"\")\n"
@@ -212,11 +237,16 @@ void print_help() {
 		"  -S                use same port for receiving and sending\n"
 		"  -c SIPURI         use the given uri as From in MESSAGE\n"
 		"  -D NUMBER         timeout multiplier for INVITE transactions\n"
-		"                    and reliable transports (default: 64)\n"
+		"                    on non-reliable transports (default: 64)\n"
+		"  -Z NUMBER         timeout T1 in ms (default: %i)\n"
 		"  -E STRING         specify transport to be used\n"
 		"  -j STRING         adds additional headers to the request\n"
+		"  -J STRING         ha1 hash for authentication instead of password\n"
+		"  -k STRING         specify local ip address to be used\n"
+		"  -K NUMBER         log exit message to syslog with given log level\n"
+		, DEFAULT_TIMEOUT
 		);
-		exit_code(0);
+		exit_code(0, __PRETTY_FUNCTION__, NULL);
 }
 
 int main(int argc, char *argv[])
@@ -233,7 +263,7 @@ int main(int argc, char *argv[])
 #ifdef HAVE_GETOPT_LONG
 	int option_index = 0;
 	static struct option l_opts[] = {
-		{"help", 0, 0, 'X'},
+		{"help", 0, 0, 0},
 		{"version", 0, 0, 'V'},
 		{"filename", 1, 0, 'f'},
 		{"sip-uri", 1, 0, 's'},
@@ -275,28 +305,57 @@ int main(int argc, char *argv[])
 		{"symmetric", 0, 0, 'S'},
 		{"from", 1, 0, 'c'},
 		{"timeout-factor", 1, 0, 'D'},
+		{"timer-t1", 1, 0, 'Z'},
 		{"transport", 1, 0, 'E'},
 		{"headers", 1, 0, 'j'},
+		{"authhash", 1, 0, 'J'},
+		{"local-ip", 1, 0, 'k'},
+		{"syslog", 1, 0, 'K'},
+#ifdef WITH_TLS_TRANSP
+		{"tls-ca-cert", 1, 0, 0},
+		{"tls-client-cert", 1, 0, 0},
+		{"tls-ignore-cert-failure", 0, 0, 0},
+#endif
 		{0, 0, 0, 0}
 	};
 #endif
-	/* some initialisation to be shure */
+	/* some initialisation to be safe */
 	file_b=uri_b=trace=lport=usrloc=flood=verbose=randtrash=trashchar = 0;
-	warning_ext=rand_rem=nonce_count=replace_b=invite=message = 0;
+	warning_ext=rand_rem=nonce_count=replace_b=invite=message=sysl = 0;
 	sleep_ms=empty_contact=nagios_warn=timing=outbound_proxy=symmetric = 0;
 	namebeg=nameend=maxforw= -1;
-	numeric=via_ins=redirects=fix_crlf=processes = 1;
+#ifdef OLDSTYLE_FQDN
+	numeric = 0;
+#else
+	numeric = 1;
+#endif
+	via_ins=redirects=fix_crlf=processes = 1;
 	username=password=replace_str=hostname=contact_uri=mes_body = NULL;
-	con_dis=auth_username=from_uri=headers = NULL;
+	con_dis=auth_username=from_uri=headers=authhash=local_ip = NULL;
 	scheme = user = host = backup = req = rep = rec = NULL;
 	re = NULL;
 	address= 0;
 	transport=tsp = 0;
 	rport = port = 0;
 	expires_t = USRLOC_EXP_DEF;
-	inv_final = 64 * SIP_T1;
+	timer_t1 = SIP_T1;
+	timer_t2 = 8;
+	timer_final = 64;
 	memset(buff, 0, BUFSIZE);
 	memset(fqdn, 0, FQDN_SIZE);
+#ifdef WITH_TLS_TRANSP
+	cert_file = ca_file = NULL;
+	ignore_ca_fail = 0;
+# ifdef USE_GNUTLS
+	tls_session = NULL;
+	xcred = NULL;
+# else
+#  ifdef USE_OPENSSL
+	ctx = NULL;
+	ssl = NULL;
+#  endif
+#endif
+#endif /* WITH_TLS_TRANSP */
 
 	if (argc==1) {
 		print_help();
@@ -304,17 +363,55 @@ int main(int argc, char *argv[])
 
 	/* lots of command line switches to handle*/
 #ifdef HAVE_GETOPT_LONG
-	while ((c=getopt_long(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:Xz:", l_opts, &option_index)) != EOF){
+	while ((c=getopt_long(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:J:k:K:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:z:Z:", l_opts, &option_index)) != EOF){
 #else
-	while ((c=getopt(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:z:")) != EOF){
+	while ((c=getopt(argc, argv, "a:A:b:B:c:C:dD:e:E:f:Fg:GhH:iIj:J:k:K:l:Lm:MnNo:O:p:P:q:r:Rs:St:Tu:UvVwW:x:z:Z:")) != EOF){
 #endif
 		switch(c){
+#ifdef HAVE_GETOPT_LONG
+			case 0:
+				printf("long option %s", l_opts[option_index].name);
+				if (optarg) {
+					printf(" with arg %s", optarg);
+				}
+				printf("\n");
+				if (STRNCASECMP("help", l_opts[option_index].name, 4) == 0) {
+					print_long_help();
+				}
+#ifdef WITH_TLS_TRANSP
+				else if (STRNCASECMP("tls-ca-cert", l_opts[option_index].name, 11) == 0) {
+					pf = fopen(optarg, "rb");
+					if (!pf){
+						fprintf(stderr, "error: unable to open the CA cert file '%s'.\n", optarg);
+						exit_code(2, __PRETTY_FUNCTION__, "failed to open CA cert file");
+					}
+					fclose(pf);
+					ca_file=optarg;
+					break;
+				}
+				else if (STRNCASECMP("tls-ignore-cert-failure", l_opts[option_index].name, 22) == 0) {
+					ignore_ca_fail = 1;
+					break;
+				}
+				else if (STRNCASECMP("tls-client-cert", l_opts[option_index].name, 14) == 0) {
+					pf = fopen(optarg, "rb");
+					if (!pf){
+						fprintf(stderr, "error: unable to open the client cert file '%s'.\n", optarg);
+						exit_code(2, __PRETTY_FUNCTION__, "failed to open client cert file");
+					}
+					fclose(pf);
+					cert_file=optarg;
+					break;
+				}
+#endif
+				break;
+#endif
 			case 'a':
 				if (strlen(optarg) == 1 && STRNCASECMP(optarg, "-", 1) == 0) {
 					password = str_alloc(SIPSAK_MAX_PASSWD_LEN);
 					printf("Please enter the password (max. length %i): ", SIPSAK_MAX_PASSWD_LEN);
 					if (read_stdin(password, SIPSAK_MAX_PASSWD_LEN, 1) == 0) {
-						exit_code(0);
+						exit_code(0, __PRETTY_FUNCTION__, NULL);
 					}
 				}
 				else {
@@ -323,10 +420,10 @@ int main(int argc, char *argv[])
 				}
 				break;
 			case 'A':
-				timing=str_to_int(optarg);
+				timing=str_to_int(0, optarg);
 				break;
 			case 'b':
-				namebeg=str_to_int(optarg);
+				namebeg=str_to_int(0, optarg);
 				break;
 			case 'B':
 				mes_body=str_alloc(strlen(optarg) + 1);
@@ -338,15 +435,15 @@ int main(int argc, char *argv[])
 				parse_uri(backup, &scheme, &user, &host, &port);
 				if (scheme  == NULL) {
 					fprintf(stderr, "error: missing scheme in From URI\n");
-					exit_code(2);
+					exit_code(2, __PRETTY_FUNCTION__, "missing scheme in From URI");
 				}
 				else if (user == NULL) {
 					fprintf(stderr, "error: missing username in From URI\n");
-					exit_code(2);
+					exit_code(2, __PRETTY_FUNCTION__, "missing username in From URI");
 				}
 				else if (host == NULL) {
 					fprintf(stderr, "error: missing host in From URI\n");
-					exit_code(2);
+					exit_code(2, __PRETTY_FUNCTION__, "missing host in From URI");
 				}
 				else {
 					from_uri=str_alloc(strlen(optarg)+1);
@@ -359,9 +456,10 @@ int main(int argc, char *argv[])
 					(strlen(optarg) == 4 && STRNCASECMP(optarg, "none", 4) == 0)) {
 					empty_contact = 1;
 				}
-				else if (strlen(optarg) == 1 && STRNCASECMP(optarg, "*", 1) == 0) {
-					contact_uri=str_alloc(strlen(optarg)+1);
-					strncpy(contact_uri, optarg, strlen(optarg));
+				else if ((strlen(optarg) == 1 && STRNCASECMP(optarg, "*", 1) == 0) ||
+						(strlen(optarg) == 4 && STRNCASECMP(optarg, "star", 4) == 0)) {
+					contact_uri=str_alloc(2);
+					memcpy(contact_uri, "*", 1);
 				}
 				else {
 					backup=str_alloc(strlen(optarg)+1);
@@ -370,15 +468,15 @@ int main(int argc, char *argv[])
 					if (scheme == NULL) {
 					    fprintf(stderr, "error: REGISTER Contact uri doesn't not contain "
 						   "sip:, sips:, *, or is not empty\n");
-				    	exit_code(2);
+				    	exit_code(2, __PRETTY_FUNCTION__, "unsupported Contact for registration");
 					}
-					else if (user == NULL) {
+					/*else if (user == NULL) {
 						fprintf(stderr, "error: missing username in Contact uri\n");
 						exit_code(2);
-					}
+					}*/
 					else if (host == NULL) {
 						fprintf(stderr, "error: missing host in Contact uri\n");
-						exit_code(2);
+						exit_code(2, __PRETTY_FUNCTION__, "missing host in Contact");
 					}
 					else {
 						contact_uri=str_alloc(strlen(optarg)+1);
@@ -391,10 +489,14 @@ int main(int argc, char *argv[])
 				redirects=0;
 				break;
 			case 'D':
-				inv_final = str_to_int(optarg) * SIP_T1;
+				timer_final = str_to_int(0, optarg);
+				if (timer_final <= 0) {
+					fprintf(stderr, "error: option D has to be above 0\n");
+					exit_code(2, __PRETTY_FUNCTION__, "option D has to be above 0");
+				}
 				break;
 			case 'e':
-				nameend=str_to_int(optarg);
+				nameend=str_to_int(0, optarg);
 				break;
 			case 'E':
 				if (strlen(optarg) == 3 && 
@@ -405,15 +507,15 @@ int main(int argc, char *argv[])
 						STRNCASECMP(optarg, "tcp", 3) == 0) {
 					transport = SIP_TCP_TRANSPORT;
 				}
+#ifdef WITH_TLS_TRANSP
 				else if (strlen(optarg) == 3 &&
 						STRNCASECMP(optarg, "tls", 3) == 0) {
-					fprintf(stderr, "error: TLS is not supported yet, supported values: udp, tcp\n");
-					exit_code(2);
 					transport = SIP_TLS_TRANSPORT;
 				}
+#endif
 				else {
 					fprintf(stderr, "error: unsupported transport '%s', supported values: udp, tcp\n", optarg);
-					exit_code(2);
+					exit_code(2, __PRETTY_FUNCTION__, "unsupported transport");
 				}
 				break;
 			case 'F':
@@ -426,25 +528,25 @@ int main(int argc, char *argv[])
 					pf = fopen(optarg, "rb");
 					if (!pf){
 						fprintf(stderr, "error: unable to open the file '%s'.\n", optarg);
-						exit_code(2);
+						exit_code(2, __PRETTY_FUNCTION__, "failed to open file from the f option");
 					}
 					if (fread(buff, 1, sizeof(buff), pf) >= sizeof(buff)){
 						fprintf(stderr, "error:the file is too big. try files of less "
 							"than %i bytes.\n", BUFSIZE);
 						fprintf(stderr, "      or recompile the program with bigger "
 							"BUFSIZE defined.\n");
-						exit_code(2);
+						exit_code(2, __PRETTY_FUNCTION__, "file to big for buffer");
 					}
 					fclose(pf);
 				}
 				else if (strlen(optarg) == 1 && STRNCASECMP(optarg, "-", 1) == 0) {
 					if (read_stdin(&buff[0], sizeof(buff), 0) == 0) {
-						exit_code(0);
+						exit_code(0, __PRETTY_FUNCTION__, NULL);
 					}
 				}
 				else {
 					fprintf(stderr, "error: unable to handle input file name: %s\n", optarg);
-					exit_code(2);
+					exit_code(2, __PRETTY_FUNCTION__, "unsupported input file name");
 				}
 				file_b=1;
 				break;
@@ -469,14 +571,34 @@ int main(int argc, char *argv[])
 			case 'j':
 				headers=optarg;
 				break;
+			case 'J':
+				if (strlen(optarg) < SIPSAK_HASHHEXLEN_MD5) {
+					fprintf(stderr, "error: authhash string is too short\n");
+					exit_code(2, __PRETTY_FUNCTION__, "authhash string is too short");
+				}
+				authhash=optarg;
+				break;
+			case 'k':
+				local_ip=optarg;
+				break;
+			case 'K':
+				sysl=str_to_int(0, optarg);
+				if (sysl < LOG_ALERT || sysl > LOG_DEBUG) {
+					fprintf(stderr, "error: syslog value '%s' must be between ALERT (1) and DEBUG (7)\n", optarg);
+					exit_code(2, __PRETTY_FUNCTION__, "unsupported syslog value for option K");
+				}
+#ifdef HAVE_SYSLOG_H
+				openlog(PACKAGE_NAME, LOG_CONS|LOG_NOWAIT|LOG_PID, LOG_USER);
+#endif
+				break;
 			case 'l':
-				lport=str_to_int(optarg);
+				lport=str_to_int(0, optarg);
 				break;
 			case 'L':
 				fix_crlf=0;
 				break;
 			case 'm':
-				maxforw=str_to_int(optarg);
+				maxforw=str_to_int(0, optarg);
 				break;
 			case 'M':
 				message=1;
@@ -493,7 +615,7 @@ int main(int argc, char *argv[])
 					sleep_ms = -2;
 				}
 				else {
-					sleep_ms = str_to_int(optarg);
+					sleep_ms = str_to_int(0, optarg);
 				}
 				break;
 			case 'O':
@@ -501,10 +623,10 @@ int main(int argc, char *argv[])
 				strncpy(con_dis, optarg, strlen(optarg));
 				break;
 			case 'p':
-				parse_uri(optarg, &scheme, &user, &host, &rport);
+				parse_uri(optarg, &scheme, &user, &host, &port);
 				if (host == NULL) {
 					fprintf(stderr, "error: missing in host in outbound proxy\n");
-					exit_code(2);
+					exit_code(2, __PRETTY_FUNCTION__, "missing host in outbound proxy");
 				}
 				if (is_ip(host)) {
 					address = getaddress(host);
@@ -512,7 +634,7 @@ int main(int argc, char *argv[])
 						transport = SIP_UDP_TRANSPORT;
 				}
 				else {
-					if (!rport) {
+					if (!port) {
 						address = getsrvadr(host, &rport, &tsp);
 						if (tsp != 0)
 							transport = tsp;
@@ -525,13 +647,19 @@ int main(int argc, char *argv[])
 					if (!address){
 						fprintf(stderr, "error:unable to determine the outbound proxy "
 							"address\n");
-						exit_code(2);
+						exit_code(2, __PRETTY_FUNCTION__, "failed to resolve the outbound proxy");
 					}
 				}
+				if (port && !rport) {
+					rport = port;
+				}
 				outbound_proxy=1;
+#ifdef DEBUG
+				printf("address: %lu, rport: %i\n", address, rport);
+#endif
 				break;
 			case 'P':
-				processes=str_to_int(optarg);
+				processes=str_to_int(0, optarg);
 				break;
 			case 'q':
 				if (re) {
@@ -543,16 +671,16 @@ int main(int argc, char *argv[])
 				};
 				if (!re) {
 					fprintf(stderr, "Error: can't allocate RE\n");
-					exit_code(2);
+					exit_code(2, __PRETTY_FUNCTION__, "failed to allocate memory for regualr expression");
 				};
 				if (regcomp(re, optarg, REG_EXTENDED|REG_ICASE|REG_NEWLINE )!=0) {
 					fprintf(stderr, "Error: compiling RE: %s\n", optarg );
-					exit_code(2);
+					exit_code(2, __PRETTY_FUNCTION__, "failed to compile regular expression");
 				};
 				break;
 			case 'r':
 				port = 0;
-				port=str_to_int(optarg);
+				port=str_to_int(0, optarg);
 				if (rport) {
 					fprintf(stderr, "warning: you are overwritting the destination port with the r argument\n");
 				}
@@ -565,15 +693,15 @@ int main(int argc, char *argv[])
 				parse_uri(optarg, &scheme, &user, &host, &port);
 				if (scheme == NULL) {
 					fprintf(stderr, "error: missing scheme in sip uri\n");
-					exit_code(2);
+					exit_code(2, __PRETTY_FUNCTION__, "missing scheme in target SIP URI");
 				}
 				if (strlen(optarg) == 4 && STRNCASECMP(optarg,"sips",4) == 0){
 					fprintf(stderr, "error: sips is not supported yet\n");
-					exit_code(2);
+					exit_code(2, __PRETTY_FUNCTION__, "unsupported scheme SIPS in target URI");
 				}
 				else if (strlen(optarg) != 3 || STRNCASECMP(optarg,"sip",3) != 0){
 					fprintf(stderr, "error: scheme of sip uri has to be sip\n");
-					exit_code(2);
+					exit_code(2, __PRETTY_FUNCTION__, "unsupported scheme in target URI");
 				}
 				if (user != NULL) {
 					username = user;
@@ -583,12 +711,12 @@ int main(int argc, char *argv[])
 				}
 				else {
 					fprintf(stderr, "error: missing hostname in sip uri\n");
-					exit_code(2);
+					exit_code(2, __PRETTY_FUNCTION__, "missing host name in target URI");
 				}
 				if (port && !rport) {
 					rport = port;
 				}
-				if (is_ip(domainname)) {
+				if (is_ip(domainname) && !address) {
 					address = getaddress(domainname);
 					if (transport == 0)
 						transport = SIP_UDP_TRANSPORT;
@@ -596,7 +724,7 @@ int main(int argc, char *argv[])
 				else {
 					if (!rport && !address) {
 						address = getsrvadr(domainname, &rport, &tsp);
-						if (tsp != 0)
+						if (tsp != 0 && transport == 0)
 							transport = tsp;
 					}
 					if (!address) {
@@ -606,7 +734,7 @@ int main(int argc, char *argv[])
 					}
 					if (!address){
 						fprintf(stderr, "error:unable to determine the IP address for: %s\n", domainname);
-						exit_code(2);
+						exit_code(2, __PRETTY_FUNCTION__, "failed to resolve host from target URI");
 					}
 				}
 				if (port != 0) {
@@ -615,13 +743,16 @@ int main(int argc, char *argv[])
 					domainname = backup;
 				}
 				uri_b=1;
+#ifdef DEBUG
+				printf("address: %lu, rport: %i, username: '%s', domain: '%s'\n", address, rport, username, domainname);
+#endif
 				break;
 			case 'S':
 				fprintf(stderr, "warning: symmetric does not work with a-symmetric servers\n");
 				symmetric=1;
 				break;
 			case 't':
-				trashchar=str_to_int(optarg);
+				trashchar=str_to_int(0, optarg);
 				break;
 			case 'T':
 				trace=1;
@@ -660,6 +791,15 @@ int main(int argc, char *argv[])
 #ifdef HAVE_OPENSSL_SHA1
 				printf(", OPENSSL_SHA1");
 #endif
+#ifdef WITH_TLS_TRANSP
+# ifdef USE_GNUTLS
+				printf(", TLS_SUPPORT(GNUTLS)");
+# else
+#  ifdef USE_OPENSSL
+				printf(", TLS_SUPPORT(OPENSSL)");
+#  endif
+# endif
+#endif
 #ifdef HAVE_CARES_H
 				printf(", SRV_SUPPORT(ARES)");
 #else
@@ -673,33 +813,38 @@ int main(int argc, char *argv[])
 #ifdef HAVE_STRNCASECMP
 				printf(", CMP_CASE_INSENSITIVE");
 #endif
+#ifdef DEBUG
+				printf(", DEBUG");
+#endif
 				printf("\n");
-				exit_code(0);
+				exit_code(0, __PRETTY_FUNCTION__, NULL);
 				break;
 			case 'w':
 				warning_ext=1;
 				break;
 			case 'W':
-				nagios_warn = str_to_int(optarg);
+				nagios_warn = str_to_int(0, optarg);
 				break;
 			case 'x':
-				expires_t=str_to_int(optarg);
+				expires_t=str_to_int(0, optarg);
 				break;
-#ifdef HAVE_GETOPT_LONG
-			case 'X':
-				print_long_help();
-				break;
-#endif
 			case 'z':
-				rand_rem=str_to_int(optarg);
+				rand_rem=str_to_int(0, optarg);
 				if (rand_rem < 0 || rand_rem > 100) {
 					fprintf(stderr, "error: z option must between 0 and 100\n");
-					exit_code(2);
+					exit_code(2, __PRETTY_FUNCTION__, "value for option z out of range");
+				}
+				break;
+			case 'Z':
+				timer_t1 = str_to_int(0, optarg);
+				if (timer_t1 <= 0) {
+					fprintf(stderr, "error: Z option must be above 0\n");
+					exit_code(2, __PRETTY_FUNCTION__, "value for option Z must be above 0");
 				}
 				break;
 			default:
-				fprintf(stderr, "error: unknown parameter %c\n", c);
-				exit_code(2);
+				fprintf(stderr, "error: unknown parameter '%c'\n", c);
+				exit_code(2, __PRETTY_FUNCTION__, "unknown parameter");
 				break;
 		}
 	}
@@ -709,11 +854,14 @@ int main(int argc, char *argv[])
 	}
 	if (rport > 65535 || rport <= 0) {
 		fprintf(stderr, "error: invalid remote port: %i\n", rport);
-		exit_code(2);
+		exit_code(2, __PRETTY_FUNCTION__, "remote port out of range");
 	}
 	if (transport == 0) {
 		transport = SIP_UDP_TRANSPORT;
 	}
+
+	timer_t2 = timer_t2 * timer_t1;
+	timer_final = timer_final * timer_t1;
 
 	/* replace LF with CRLF if we read from a file */
 	if ((file_b) && (fix_crlf)) {
@@ -736,11 +884,11 @@ int main(int argc, char *argv[])
 		if (usrloc || flood || randtrash) {
 			fprintf(stderr, "error: trace can't be combined with usrloc, random or "
 				"flood\n");
-			exit_code(2);
+			exit_code(2, __PRETTY_FUNCTION__, "trace mode can't be combined with other modes");
 		}
 		if (!uri_b) {
 			fprintf(stderr, "error: for trace mode a SIPURI is realy needed\n");
-			exit_code(2);
+			exit_code(2, __PRETTY_FUNCTION__, "missing URI for trace mode");
 		}
 		if (file_b) {
 			fprintf(stderr, "warning: file will be ignored for tracing.");
@@ -748,7 +896,7 @@ int main(int argc, char *argv[])
 		if (!username) {
 			fprintf(stderr, "error: for trace mode without a file the SIPURI have to "
 				"contain a username\n");
-			exit_code(2);
+			exit_code(2, __PRETTY_FUNCTION__, "missing username in target URI");
 		}
 		if (!via_ins){
 			fprintf(stderr, "warning: Via-Line is needed for tracing. Ignoring -i\n");
@@ -765,33 +913,33 @@ int main(int argc, char *argv[])
 		if (trace || flood || randtrash) {
 			fprintf(stderr, "error: usrloc can't be combined with trace, random or "
 				"flood\n");
-			exit_code(2);
+			exit_code(2, __PRETTY_FUNCTION__, "usrloc mode can't be combined with other modes");
 		}
 		if (!username || !uri_b) {
 			fprintf(stderr, "error: for the USRLOC mode you have to give a SIPURI with "
 				"a username\n       at least\n");
-			exit_code(2);
+			exit_code(2, __PRETTY_FUNCTION__, "missing target URI or username in URI");
 		}
 		if (namebeg>0 && nameend==-1) {
 			fprintf(stderr, "error: if a starting numbers is given also an ending "
 				"number have to be specified\n");
-			exit_code(2);
+			exit_code(2, __PRETTY_FUNCTION__, "missing end number");
 		}
 		if (invite && message) {
 			fprintf(stderr, "error: invite and message tests are XOR\n");
-			exit_code(2);
+			exit_code(2, __PRETTY_FUNCTION__, "INVITE and MESSAGE tests are XOR");
 		}
 		if (!usrloc && invite && !lport) {
 			fprintf(stderr, "warning: Do NOT use the usrloc invite mode without "
 				"registering sipsak before.\n         See man page for "
 				"details.\n");
-			exit_code(2);
+			exit_code(2, __PRETTY_FUNCTION__, "don't use usrloc INVITE mode without registerting before");
 		}
 		if (contact_uri!=NULL) {
 			if (invite || message) {
 				fprintf(stderr, "error: Contact uri is not support for invites or "
 					"messages\n");
-				exit_code(2);
+				exit_code(2, __PRETTY_FUNCTION__, "Contact URI not supported for INVITE or MESSAGE mode");
 			}
 			if (nameend!=-1 || namebeg!=-1) {
 				fprintf(stderr, "warning: ignoring starting or ending number if Contact"
@@ -804,7 +952,9 @@ int main(int argc, char *argv[])
 			}
 		}
 		if (via_ins) {
-			fprintf(stderr, "warning: ignoring -i option when in usrloc mode\n");
+			if (verbose > 1) {
+				fprintf(stderr, "warning: Deactivated Via insertion in usrloc mode.\n         Please use option -i to surpress this warning.\n");
+			}
 			via_ins=0;
 		}
 		if (nameend==-1)
@@ -816,11 +966,11 @@ int main(int argc, char *argv[])
 		if (trace || usrloc || randtrash) {
 			fprintf(stderr, "error: flood can't be combined with trace, random or "
 				"usrloc\n");
-			exit_code(2);
+			exit_code(2, __PRETTY_FUNCTION__, "flood mode can't be combined with other modes");
 		}
 		if (!uri_b) {
 			fprintf(stderr, "error: we need at least a sip uri for flood\n");
-			exit_code(2);
+			exit_code(2, __PRETTY_FUNCTION__, "missing target URI");
 		}
 		if (redirects) {
 			fprintf(stderr, "warning: redirects are not expected in flood. "
@@ -832,11 +982,11 @@ int main(int argc, char *argv[])
 		if (trace || usrloc || flood) {
 			fprintf(stderr, "error: random can't be combined with trace, flood or "
 				"usrloc\n");
-			exit_code(2);
+			exit_code(2, __PRETTY_FUNCTION__, "random mode can't be combined with other modes");
 		}
 		if (!uri_b) {
 			fprintf(stderr, "error: need at least a sip uri for random\n");
-			exit_code(2);
+			exit_code(2, __PRETTY_FUNCTION__, "missing target URI");
 		}
 		if (redirects) {
 			fprintf(stderr, "warning: redirects are not expected in random. "
@@ -855,7 +1005,7 @@ int main(int argc, char *argv[])
 		}
 		if (!uri_b) {
 			fprintf(stderr, "error: need at least a sip uri to send a meesage\n");
-			exit_code(2);
+			exit_code(2, __PRETTY_FUNCTION__, "missing target SIP URI");
 		}
 		if (nameend==-1)
 			nameend=0;
@@ -865,14 +1015,16 @@ int main(int argc, char *argv[])
 	else {
 		if (!uri_b) {
 			fprintf(stderr, "error: a spi uri is needed at least\n");
-			exit_code(2);
+			exit_code(2, __PRETTY_FUNCTION__, "missing target SIP URI");
 		}
 	}
 
 	switch (transport) {
+#ifdef WITH_TLS_TRANSP
 		case SIP_TLS_TRANSPORT:
 			transport_str = TRANSPORT_TLS_STR;
 			break;
+#endif /* WITH_TLS_TRANSP */
 		case SIP_TCP_TRANSPORT:
 			transport_str = TRANSPORT_TCP_STR;
 			break;
@@ -881,27 +1033,46 @@ int main(int argc, char *argv[])
 			break;
 		default:
 			fprintf(stderr, "unknown transport: %i\n", transport);
-			exit_code(2);
+			exit_code(2, __PRETTY_FUNCTION__, "unknown transport");
 	}
+
+#ifdef WITH_TLS_TRANSP
+	if (transport == SIP_TLS_TRANSPORT) {
+# ifdef USE_GNUTLS
+		gnutls_global_init();
+		//gnutls_anon_allocate_client_credentials(&anoncred);
+		gnutls_certificate_allocate_credentials(&xcred);
+		if (ca_file != NULL) {
+			// set the trusted CA file
+			gnutls_certificate_set_x509_trust_file(xcred, ca_file, GNUTLS_X509_FMT_PEM);
+		}
+# else
+#  ifdef USE_OPENSSL
+		SSL_library_init();
+		SSL_load_error_strings();
+#  endif
+# endif
+	}
+#endif /* WITH_TLS_TRANSP */
 
 	/* determine our hostname */
 	get_fqdn();
 	
 	/* this is not a cryptographic random number generator,
 	   but hey this is only a test-tool => should be satisfying*/
-	srand(time(0) ^ getpid());
+	srand(time(0) ^ (getpid() + (getpid() << 15)));
 	
 	if (processes > 1) {
 		if (signal(SIGCHLD , sigchld_handler)  == SIG_ERR ) {
 			fprintf(stderr, "error: Could not install SIGCHLD handler\n");
-			exit_code(2);
+			exit_code(2, __PRETTY_FUNCTION__, "failed to install SIGCHLD handler");
 		}
 	}
 
 	for(i = 0; i < processes - 1; i++) {
 		if ((pid = fork()) < 0) {
 			fprintf(stderr, "error: Cannot fork\n");
-			exit_code(2);
+			exit_code(2, __PRETTY_FUNCTION__, "failed to fork");
 		}
 		
 		if (pid == 0){

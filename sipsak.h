@@ -73,11 +73,18 @@
 
 #ifdef HAVE_GNUTLS
 # define HAVE_EXTERNAL_MD5
+# define USE_GNUTLS
+# ifndef SIPSAK_NO_TLS
+#  define WITH_TLS_TRANSP 1
+# endif
+# include <gnutls/gnutls.h>
 #else
 # ifdef HAVE_OPENSSL_MD5_H
 #  ifdef HAVE_CRYPTO_WITH_MD5
 #   define HAVE_FULL_OPENSSL
 #   define HAVE_EXTERNAL_MD5
+#   define USE_OPENSSL
+#   include <openssl/ssl.h>
 #  endif
 # endif
 #endif
@@ -86,6 +93,10 @@
 # ifdef HAVE_CRYPTO_WITH_SHA1
 #  define HAVE_OPENSSL_SHA1
 # endif
+#endif
+
+#ifdef SIPSAK_PRINT_DBG
+# define DEBUG 1
 #endif
 
 #ifndef REG_NOERROR
@@ -111,6 +122,7 @@
 #define SIP_T2 8*SIP_T1
 
 #define SIPSAK_VERSION PACKAGE_VERSION
+#define UA_VAL_STR "sipsak " SIPSAK_VERSION
 #define BUFSIZE		4096
 
 #define SIPSAK_MAX_PASSWD_LEN 20
@@ -122,8 +134,6 @@
 #define REQ_OPT 5
 #define REQ_FLOOD 6
 #define REQ_RAND 7
-
-#undef WITH_TLS_TRANSP
 
 #define SIP_TLS_TRANSPORT 1
 #define SIP_TCP_TRANSPORT 2
@@ -294,6 +304,21 @@
 #endif
 #define SIPSAK_HASHHEXLEN 2 * SIPSAK_HASHLEN
 
+#ifdef WITH_TLS_TRANSP
+char *cert_file, *ca_file;
+int ignore_ca_fail;
+# ifdef USE_GNUTLS
+gnutls_session_t tls_session;
+//gnutls_anon_client_credentials_t anoncred;
+gnutls_certificate_credentials_t xcred;
+# else
+#  ifdef USE_OPENSSL
+SSL_CTX* ctx;
+SSL* ssl;
+#  endif
+# endif
+#endif
+
 /* lots of global variables. ugly but makes life easier. */
 unsigned long address;
 unsigned int nonce_count, transport;
@@ -301,9 +326,10 @@ int sleep_ms, processes, cseq_counter;
 int verbose, nameend, namebeg, expires_t, flood, warning_ext, invite, message;
 int maxforw, lport, rport, randtrash, trashchar, numeric, symmetric;
 int file_b, uri_b, trace, via_ins, usrloc, redirects, rand_rem, replace_b;
-int empty_contact, nagios_warn, fix_crlf, timing, outbound_proxy, inv_final;
+int empty_contact, nagios_warn, fix_crlf, timing, outbound_proxy;
+int timer_t1, timer_t2, timer_final, sysl;
 char *username, *domainname, *password, *replace_str, *hostname, *contact_uri;
-char *mes_body, *con_dis, *auth_username, *from_uri, *headers;
+char *mes_body, *con_dis, *auth_username, *from_uri, *headers, *authhash, *local_ip;
 char fqdn[FQDN_SIZE];
 char target_dot[INET_ADDRSTRLEN], source_dot[INET_ADDRSTRLEN];
 char *req, *rep, *rec, *transport_str;

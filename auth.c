@@ -28,6 +28,7 @@
 
 #define SIPSAK_ALGO_MD5 1
 #define SIPSAK_ALGO_SHA1 2
+#define SIPSAK_ALGO_SHA256 3
 
 /* converts a hash into hex output
    taken from the RFC 2617 */
@@ -66,6 +67,7 @@ void insert_auth(char *message, char *authreq)
 	MD5_CTX Md5Ctx;
 #ifdef HAVE_OPENSSL_SHA1
 	SHA_CTX Sha1Ctx;
+	SHA256_CTX Sha256Ctx;
 #endif
 
 	auth=begin=end=insert=backup=realm=usern=nonce=method=uri = NULL;
@@ -124,8 +126,11 @@ void insert_auth(char *message, char *authreq)
 				algo = SIPSAK_ALGO_MD5;
 			}
 #ifdef HAVE_OPENSSL_SHA1
-			else if ((STRNCASECMP(begin, "SHA1", 3))==0 || (STRNCASECMP(begin, "\"SHA1\"", 5))==0) {
+			else if ((STRNCASECMP(begin, "SHA1", 4))==0 || (STRNCASECMP(begin, "\"SHA1\"", 6))==0) {
 				algo = SIPSAK_ALGO_SHA1;
+			}
+			else if ((STRNCASECMP(begin, "SHA-256", 7))==0 || (STRNCASECMP(begin, "\"SHA-256\"", 9))==0) {
+				algo = SIPSAK_ALGO_SHA256;
 			}
 #endif
 			else {
@@ -181,6 +186,10 @@ void insert_auth(char *message, char *authreq)
 		else if (algo == SIPSAK_ALGO_SHA1) {
 			snprintf(insert, SHA1_STR_LEN+1, SHA1_STR);
 			insert+=SHA1_STR_LEN;
+		}
+		else if (algo == SIPSAK_ALGO_SHA256) {
+			snprintf(insert, SHA256_STR_LEN+1, SHA256_STR);
+			insert+=SHA256_STR_LEN;
 		}
 #endif
 		/* search for the realm, copy it to request and extract it for hash*/
@@ -331,6 +340,40 @@ void insert_auth(char *message, char *authreq)
 			SHA1_Update(&Sha1Ctx, &ha2_hex, SIPSAK_HASHHEXLEN_SHA1);
 			SHA1_Final(&resp[0], &Sha1Ctx);
 			cvt_hex(&resp[0], &resp_hex[0], SIPSAK_HASHLEN_SHA1);
+		}
+		else if (algo == SIPSAK_ALGO_SHA256) {
+			if (authhash) {
+				strncpy((char*)&ha1_hex[0], authhash, SIPSAK_HASHHEXLEN_SHA256);
+			}
+			else {
+				SHA256_Init(&Sha256Ctx);
+				SHA256_Update(&Sha256Ctx, usern, (unsigned int)strlen(usern));
+				SHA256_Update(&Sha256Ctx, ":", 1);
+				SHA256_Update(&Sha256Ctx, realm, (unsigned int)strlen(realm));
+				SHA256_Update(&Sha256Ctx, ":", 1);
+				SHA256_Update(&Sha256Ctx, password, (unsigned int)strlen(password));
+				SHA256_Final(&ha1[0], &Sha256Ctx);
+				cvt_hex(&ha1[0], &ha1_hex[0], SIPSAK_HASHLEN_SHA256);
+			}
+
+			SHA256_Init(&Sha256Ctx);
+			SHA256_Update(&Sha256Ctx, method, (unsigned int)strlen(method));
+			SHA256_Update(&Sha256Ctx, ":", 1);
+			SHA256_Update(&Sha256Ctx, uri, (unsigned int)strlen(uri));
+			SHA256_Final(&ha2[0], &Sha256Ctx);
+			cvt_hex(&ha2[0], &ha2_hex[0], SIPSAK_HASHLEN_SHA256);
+
+			SHA256_Init(&Sha256Ctx);
+			SHA256_Update(&Sha256Ctx, &ha1_hex, SIPSAK_HASHHEXLEN_SHA256);
+			SHA256_Update(&Sha256Ctx, ":", 1);
+			SHA256_Update(&Sha256Ctx, nonce, (unsigned int)strlen(nonce));
+			SHA256_Update(&Sha256Ctx, ":", 1);
+			if (qop_auth == 1) {
+				SHA256_Update(&Sha256Ctx, qop_tmp, (unsigned int)strlen(qop_tmp));
+			}
+			SHA256_Update(&Sha256Ctx, &ha2_hex, SIPSAK_HASHHEXLEN_SHA256);
+			SHA256_Final(&resp[0], &Sha256Ctx);
+			cvt_hex(&resp[0], &resp_hex[0], SIPSAK_HASHLEN_SHA256);
 		}
 #endif
 

@@ -254,6 +254,9 @@
 #define SHA1_STR "SHA1, "
 #define SHA1_STR_LEN (sizeof(SHA1_STR) - 1)
 
+#define SHA256_STR "SHA-256, "
+#define SHA256_STR_LEN (sizeof(SHA256_STR) - 1)
+
 #define REALM_STR "realm="
 #define REALM_STR_LEN (sizeof(REALM_STR) - 1)
 

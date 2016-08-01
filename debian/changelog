@@ -1,3 +1,15 @@
+ngcp-sipsak (0.9.7pre+sipwise6+0~mr4.5.1.0) unstable; urgency=medium
+
+  [ nils-ohlmeier ]
+  * [4e72c54] small doc updates for SRV support
+
+  [ Nils Ohlmeier ]
+  * [1a19be0] removed old references
+
+  [ Sipwise Jenkins Builder ]
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Mon, 01 Aug 2016 16:38:53 +0200
+
 ngcp-sipsak (0.9.7pre+sipwise6+0~mr4.5.0.0) unstable; urgency=medium
 
   * New release.

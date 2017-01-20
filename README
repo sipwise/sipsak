@@ -1,42 +1,6 @@
+repository discontinued
+-----------------------
 
-    REQUIREMENTS
-    ============
-
- None.
-
- Optional:
- - Have 
-     GnuTLS (http://www.gnutls.org/)
-   or 
-     OpenSSL (http://www.openssl.org/)
-   installed on your system to use their MD5 implementations
-   instead of sipsak own version.
- - Have 
-     c-ares (http://daniel.haxx.se/projects/c-ares/)
-   or
-     ruli (http://www.nongnu.org/ruli/)
-   installed on your system to get DNS SRV lookup support
-   compiled into your sipsak binary.
-     
-    INSTALLATION
-    ============
-
- The usual
-
-   ./configure
-   make
-
- followed by an optional
-
-   make install
-
- if the binary should be available for all users on that host.
-
-    USAGE
-    =====
-
- Please read the man page. It also contains some typical usage
- examples at the end.
-
- Have fun
-   Nils
+The current repository is Sipwise fork of https://github.com/nils-ohlmeier/sipsak
+All Sipwise changes have been uploaded upstream already and Sipwise NGCP mr5.0+ uses sipsak from Debian.
+The current repository is for historical purposes only until old NGCP releases are supported.

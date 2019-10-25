@@ -1,3 +1,9 @@
+ngcp-sipsak (0.9.7pre+sipwise6+0~mr4.5.14.0) unstable; urgency=medium
+
+  * New release.
+
+ -- Sipwise Jenkins Builder <jenkins@sipwise.com>  Fri, 25 Oct 2019 16:04:30 +0200
+
 ngcp-sipsak (0.9.7pre+sipwise6+0~mr4.5.13.0) unstable; urgency=medium
 
   * New release.
